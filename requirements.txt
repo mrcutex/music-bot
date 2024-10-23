@@ -2,7 +2,7 @@ asyncio
 TgCrypto
 pytgcalls
 pyrogram
-youtubesearchpython
+youtube-search-python
 Pillow
 requests
 aiohttp

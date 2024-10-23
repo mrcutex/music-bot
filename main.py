@@ -494,7 +494,7 @@ async def send_auto_messages():
                 except Exception as e:
                     print(f"Error sending fun fact to group {group_id}: {e}")
 
-        await asyncio.sleep(300)  # Wait for 5 minutes before sending the next message
+        await asyncio.sleep(1000)  # Wait for 5 minutes before sending the next message
 
 
 

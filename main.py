@@ -520,7 +520,7 @@ async def main():
     await app.start()
     await real_pytgcalls.start()
     print("Real app and PyTgCalls started")
-    asyncio.create_task(send_auto_messages())
+   # asyncio.create_task(send_auto_messages())
     
     await idle()
     await app.stop()

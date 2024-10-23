@@ -1,6 +1,4 @@
 asyncio
-logging
-os-sys
 TgCrypto
 pytgcalls
 pyrogram

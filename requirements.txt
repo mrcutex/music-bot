@@ -1,6 +1,6 @@
 asyncio
 TgCrypto
-pytgcalls==2.0.0
+py-tgcalls -U
 pyrogram
 youtube-search-python
 Pillow

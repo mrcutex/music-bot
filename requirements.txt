@@ -4,9 +4,10 @@ py-tgcalls
 flask
 pyrogram
 yt-dlp
+ffmpeg
 youtube-search-python
 Pillow
 requests
 aiohttp
 ffprobe
-ffmpeg
+

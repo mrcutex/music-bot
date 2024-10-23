@@ -16,9 +16,9 @@ import random
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 
-api_id = int(os.getenv("REAL_API_ID", "27165689"))
-api_hash = os.getenv("REAL_API_HASH", "ea4431c5ed796781792d5ac5af232d73")
-session_string = os.getenv("REAL_SESSION_STRING", "BQCczrEADFJHxKRpZ6AEG4sIFDeQPsOazOgT0vStm_h4Jd1A1lGYyGtn97yYN1_itjcmnzbSnp6xyQQf_POtj3-zEVAfBpl4Og8vS6d-HTZJ6YIdXqFVZtdNgp3q8H267hRlOWSA8c7rQWYRmF5cX1RN5nJjktropMZyFZy6Oivt8iYGLjYrvWmTzaL-xliYUHwjcF2tal024nG9Jlu-AAm426lPqLCQlnZDhFKsCoBpSHUDXUxdNNaJMkleaIoOL6-azENt4aWF2KD-UYeUZf4mQAS3WNXMyVduT6Z1XEDlhqVhtjL_-fNlYjrjKV6nv7v35DshSvM26tjsJI8W2V4WTEY9bwAAAAGo49HaAA")
+api_id = int(os.getenv("REAL_API_ID"))
+api_hash = os.getenv("REAL_API_HASH")
+session_string = os.getenv("REAL_SESSION_STRING")
 
 # Initialize Pyrogram client and PyTgCalls
 app = Client("RealAccount", api_id=api_id, api_hash=api_hash, session_string=session_string)

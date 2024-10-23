@@ -442,7 +442,7 @@ async def fetch_trivia():
             random.shuffle(options)
 
             # Create a formatted message for the trivia question
-            trivia_message = f"**🎉 Trivia Challenge! 🎉**\n\n**Question:** {question}\n"
+            trivia_message = f"🎉 Trivia Challenge! 🎉\n\nQuestion: {question}\n"
             trivia_message += "\n".join([f"{i + 1}. {option}" for i, option in enumerate(options)])
             trivia_message += f"\n\n**🕵️‍♂️ Find the correct answer in the poll below!**"
             

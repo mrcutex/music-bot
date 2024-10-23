@@ -1,0 +1,10 @@
+asyncio
+logging
+os-sys
+TgCrypto
+pytgcalls
+pyrogram
+youtubesearchpython
+Pillow
+requests
+aiohttp

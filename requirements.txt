@@ -8,3 +8,4 @@ youtube-search-python
 Pillow
 requests
 aiohttp
+ffprobe

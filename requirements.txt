@@ -1,6 +1,7 @@
 asyncio
 TgCrypto
 py-tgcalls
+flask
 pyrogram
 youtube-search-python
 Pillow

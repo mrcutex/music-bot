@@ -3,6 +3,7 @@ TgCrypto
 py-tgcalls
 flask
 pyrogram
+yt-dlp
 youtube-search-python
 Pillow
 requests

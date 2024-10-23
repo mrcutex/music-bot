@@ -15,6 +15,22 @@ import requests
 import random
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
+from flask import Flask
+import threading
+
+app = Flask(__name__)
+
+@app.route('/health')
+def health():
+    return 'OK', 200
+
+def run_server():
+    app.run(host='0.0.0.0', port=8000)
+
+if __name__ == "__main__":
+    threading.Thread(target=run_server).start()
+    # Your existing bot code here
+
 
 api_id = int(os.getenv("REAL_API_ID"))
 api_hash = os.getenv("REAL_API_HASH")
@@ -494,7 +510,7 @@ async def send_auto_messages():
                 except Exception as e:
                     print(f"Error sending fun fact to group {group_id}: {e}")
 
-        await asyncio.sleep(1000)  # Wait for 5 minutes before sending the next message
+        await asyncio.sleep(18000)  # Wait for 5 minutes before sending the next message
 
 
 

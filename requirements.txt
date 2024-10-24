@@ -4,7 +4,7 @@ py-tgcalls
 flask
 pyrogram
 yt-dlp
-ffprobe
+ffmpeg-python
 youtube-search-python
 Pillow
 requests

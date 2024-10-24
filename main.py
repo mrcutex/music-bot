@@ -159,26 +159,36 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
     try:
         title, duration_str, link, media_type, thumbnail_url = track["title"], track["duration"], track["link"], track.get("thumbnail"), track["type"]
         duration = convert_duration(duration_str)
+        
+        # Fetch the audio or video stream link
         resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)
         if resp != 1:
             await message.reply("Error playing the next track in the queue.")
             return
+        
         media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
         await real_pytgcalls.play(chat_id, media_stream)
+        
         user = message.from_user.first_name
         thumbnail_file = await download_thumbnail(thumbnail_url)
-        thumbnail_file = await download_thumbnail(thumbnail_url)
+        
+        # Thumbnail handling and reply
         if thumbnail_file:
-    try:
-        await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
-    except Exception as e:
-        logger.error(f"Error sending thumbnail: {e}")
-        await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str} (Thumbnail failed to load)")
-    finally:
-        os.remove(thumbnail_file)  # Ensure file cleanup in all cases
+            try:
+                await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+            except Exception as e:
+                logger.error(f"Error sending thumbnail: {e}")
+                await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str} (Thumbnail failed to load)")
+            finally:
+                os.remove(thumbnail_file)  # Ensure file cleanup in all cases
+        else:
+            await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
 
+        # If not called from the loop, send the reply message
         if not from_loop:
             await message.reply(reply_message, disable_web_page_preview=True)
+        
+        # Update stream running details for tracking
         stream_running[chat_id] = {
             "start_time": time.time() - seek_time,
             "duration": duration,
@@ -187,7 +197,9 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
             "link": link,
             "type": media_type
         }
+        
         logger.info(f"Started playing: {title} (Duration: {duration_str}) in chat {chat_id}")
+    
     except Exception as e:
         logger.error(f"Error playing media: {e}")
         await message.reply(f"Error playing media: {e}")

@@ -169,10 +169,13 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         thumbnail_file = await download_thumbnail(thumbnail_url)
         thumbnail_file = await download_thumbnail(thumbnail_url)
         if thumbnail_file:
-           await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
-           os.remove(thumbnail_file)  # Clean up the thumbnail file
-        else:
-           await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+    try:
+        await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+    except Exception as e:
+        logger.error(f"Error sending thumbnail: {e}")
+        await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str} (Thumbnail failed to load)")
+    finally:
+        os.remove(thumbnail_file)  # Ensure file cleanup in all cases
 
         if not from_loop:
             await message.reply(reply_message, disable_web_page_preview=True)

@@ -68,6 +68,7 @@ async def search_yt(query):
             title = video['title']
             duration = video['duration']
             video_id = video['id']
+            thumbnail_url = video['thumbnails'][0]['url']
             link = f"https://www.youtube.com/watch?v={video_id}"
             return title, duration, link
         else:
@@ -101,6 +102,20 @@ async def ytdl(format, link):
         logger.error(f"Exception occurred in ytdl: {e}")
         return 0, str(e)
 
+async def download_thumbnail(url):
+    """Download the thumbnail from YouTube."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    img_data = await resp.read()
+                    img_name = f"thumb_{random.randint(1, 10000)}.jpg"
+                    with open(img_name, 'wb') as f:
+                        f.write(img_data)
+                    return img_name
+    except Exception as e:
+        logger.error(f"Error downloading thumbnail: {e}")
+    return None
 
 
 
@@ -142,7 +157,7 @@ async def poll_stream_status(chat_id, message):
 
 async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
     try:
-        title, duration_str, link, media_type = track["title"], track["duration"], track["link"], track["type"]
+        title, duration_str, link, media_type, thumbnail_url = track["title"], track["duration"], track["link"], track.get("thumbnail"), track["type"]
         duration = convert_duration(duration_str)
         resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)
         if resp != 1:
@@ -151,11 +166,14 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
         await real_pytgcalls.play(chat_id, media_stream)
         user = message.from_user.first_name
-        reply_message = (
-            f"**Playing:** [{title}]({link})\n"
-            f"**Duration:** {duration_str}\n"
-            f"**Played By:** {user}"
-        )
+        thumbnail_file = await download_thumbnail(thumbnail_url)
+        thumbnail_file = await download_thumbnail(thumbnail_url)
+        if thumbnail_file:
+           await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+           os.remove(thumbnail_file)  # Clean up the thumbnail file
+        else:
+           await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+
         if not from_loop:
             await message.reply(reply_message, disable_web_page_preview=True)
         stream_running[chat_id] = {

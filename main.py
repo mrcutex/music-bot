@@ -237,13 +237,14 @@ async def play(client, message):
             await real_pytgcalls.play(chat_id, MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE))
             user = message.from_user.first_name
             if thumbnail_file:
-            try:
-                await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+           
+    try:
+            await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
             except Exception as e:
-                logger.error(f"Error sending thumbnail: {e}")
-                await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str} (Thumbnail failed to load)")
-            finally:
-                os.remove(thumbnail_file)  # Ensure file cleanup in all cases
+            logger.error(f"Error sending thumbnail: {e}")
+            await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str} (Thumbnail failed to load)")
+    finally:
+            os.remove(thumbnail_file)  # Ensure file cleanup in all cases
         else:
             await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
             stream_running[chat_id] = {

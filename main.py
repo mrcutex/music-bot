@@ -112,21 +112,28 @@ async def ytdl(format, link):
 
 
 
-async def download_thumbnail(video_id):
-    """Download the highest quality thumbnail from YouTube."""
-    url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+async def download_thumbnail(url, retries=3):
+    """Download the thumbnail from YouTube with retry logic."""
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    img_data = await resp.read()
-                    img_name = f"thumb_{random.randint(1, 10000)}.jpg"
-                    with open(img_name, 'wb') as f:
-                        f.write(img_data)
-                    return img_name
+            for attempt in range(retries):
+                try:
+                    async with session.get(url) as resp:
+                        if resp.status == 200:
+                            img_data = await resp.read()
+                            img_name = f"thumb_{random.randint(1, 10000)}.jpg"
+                            with open(img_name, 'wb') as f:
+                                f.write(img_data)
+                            return img_name
+                        else:
+                            logger.warning(f"Failed to download thumbnail (Attempt {attempt+1}/{retries}), Status: {resp.status}")
+                except aiohttp.ClientError as e:
+                    logger.error(f"Error during thumbnail download (Attempt {attempt+1}/{retries}): {e}")
+                await asyncio.sleep(2)  # Add a delay between retries
     except Exception as e:
-        logger.error(f"Error downloading thumbnail: {e}")
+        logger.error(f"Unexpected error downloading thumbnail: {e}")
     return None
+
 
 def create_thumbnail_with_text(img_path, title, requester):
     """Edit the downloaded thumbnail with a blurred background, title, and requester details."""

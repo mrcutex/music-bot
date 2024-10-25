@@ -110,8 +110,11 @@ async def ytdl(format, link):
         logger.error(f"Exception occurred in ytdl: {e}")
         return 0, str(e)
 
-async def download_thumbnail(url):
-    """Download the thumbnail from YouTube."""
+
+
+async def download_thumbnail(video_id):
+    """Download the highest quality thumbnail from YouTube."""
+    url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -124,6 +127,49 @@ async def download_thumbnail(url):
     except Exception as e:
         logger.error(f"Error downloading thumbnail: {e}")
     return None
+
+def create_thumbnail_with_text(img_path, title, requester):
+    """Edit the downloaded thumbnail with a blurred background, title, and requester details."""
+    try:
+        # Load the thumbnail image
+        img = Image.open(img_path).convert("RGBA")
+        
+        # Resize, blur, and use it as a background
+        bg = img.resize((1280, 720), Image.Resampling.LANCZOS)
+        bg = bg.filter(ImageFilter.GaussianBlur(15))  # Adjust blur radius as needed
+        
+        # Overlay the original image as a smaller thumbnail (optional)
+        img = img.resize((640, 360), Image.Resampling.LANCZOS)
+        bg.paste(img, (320, 180))  # Centered
+
+        # Draw overlay text and elements
+        draw = ImageDraw.Draw(bg)
+        font_title = ImageFont.truetype("arial.ttf", 40)
+        font_requester = ImageFont.truetype("arial.ttf", 30)
+        
+        # Draw the title text
+        draw.text((50, 600), f"🎵 {title}", font=font_title, fill="white")
+
+        # Draw the requester name
+        draw.text((50, 650), f"Requested by: {requester}", font=font_requester, fill="lightgray")
+
+        # Draw a simple progress bar (example)
+        progress_width = 400
+        progress_height = 10
+        progress_x = 50
+        progress_y = 690
+        draw.rectangle((progress_x, progress_y, progress_x + progress_width, progress_y + progress_height), fill="gray")
+        draw.rectangle((progress_x, progress_y, progress_x + progress_width // 2, progress_y + progress_height), fill="lime")
+
+        # Save the edited image
+        edited_img_name = f"edited_thumb_{random.randint(1, 10000)}.jpg"
+        bg.save(edited_img_name, "JPEG")
+        
+        return edited_img_name
+    except Exception as e:
+        logger.error(f"Error creating edited thumbnail: {e}")
+        return None
+
 
 
 
@@ -213,7 +259,6 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         await message.reply(f"Error playing media: {e}")
 
 @app.on_message(filters.command("play", PREFIX))
-@app.on_message(filters.command("play", PREFIX))
 async def play(client, message):
     global stream_running
     if len(message.command) < 2:
@@ -228,8 +273,8 @@ async def play(client, message):
         await message.delete()
         await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
         
-        # Unpack all four values: title, duration, link, and thumbnail_url
-        title, duration, link, thumbnail_url = await search_yt(query)
+        # Unpack title, duration, link, and video_id
+        title, duration, link, video_id = await search_yt(query)
         
         if not link:
             await indicator_message.edit("Sorry, no results found for this query.")
@@ -240,29 +285,29 @@ async def play(client, message):
             await indicator_message.edit("Sorry, unable to retrieve audio link.")
             return
 
+        # Check if there is an active stream
         if chat_id in stream_running:
             logger.info(f"Active stream found in chat {chat_id}, adding {title} to queue.")
             await add_to_queue(chat_id, title, duration, link, 'audio')
-            await message.reply(f"**Added to queue:**\n [{title}]({link})\n**Duration: {duration}", disable_web_page_preview=True)
+            await message.reply(f"**Added to queue:**\n [{title}]({link})\n**Duration:** {duration}", disable_web_page_preview=True)
         else:
             logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
             await real_pytgcalls.play(chat_id, MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE))
-            user = message.from_user.first_name
             
-            # Download and send the thumbnail
-            thumbnail_file = await download_thumbnail(thumbnail_url)
+            requester_name = message.from_user.first_name
+            # Download and create the thumbnail
+            thumbnail_file = await download_thumbnail(video_id)
             
             if thumbnail_file:
-                try:
-                    await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration}")
-                except Exception as e:
-                    logger.error(f"Error sending thumbnail: {e}")
+                edited_thumbnail = create_thumbnail_with_text(thumbnail_file, title, requester_name)
+                if edited_thumbnail:
+                    await message.reply_photo(edited_thumbnail, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration}")
+                else:
                     await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration} (Thumbnail failed to load)")
-                finally:
-                    os.remove(thumbnail_file)  # Ensure file cleanup in all cases
             else:
-                await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration}")
+                await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration} (Thumbnail not available)")
             
+            # Update stream_running status
             stream_running[chat_id] = {
                 "start_time": time.time(),
                 "duration": convert_duration(duration),
@@ -272,7 +317,7 @@ async def play(client, message):
                 "type": 'audio'
             }
             asyncio.create_task(poll_stream_status(chat_id, message))
-        
+
         await indicator_message.delete()
     except Exception as e:
         logger.error(f"Error in play command: {e}")

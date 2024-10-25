@@ -68,14 +68,22 @@ async def search_yt(query):
             title = video['title']
             duration = video['duration']
             video_id = video['id']
-            thumbnail_url = video['thumbnails'][0]['url']
+
+            # Attempt to fetch the high-quality thumbnail
+            max_res_thumbnail = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+            hq_thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+
+            # Use the max resolution thumbnail first
+            thumbnail_url = max_res_thumbnail if requests.get(max_res_thumbnail).status_code == 200 else hq_thumbnail
+
             link = f"https://www.youtube.com/watch?v={video_id}"
-            return title, duration, link, thumbnail_url
+            return title, duration, link, thumbnail_url  # Always return 4 values
         else:
-            return None, None, None
+            return None, None, None, None  # Ensure it returns 4 values even if no result is found
     except Exception as e:
         logger.error(f"search_yt error: {e}")
-        return None, None, None
+        return None, None, None, None  # Ensure it returns 4 values even on error
+
 
 async def ytdl(format, link):
     try:

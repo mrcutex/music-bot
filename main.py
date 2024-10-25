@@ -218,35 +218,47 @@ async def play(client, message):
     try:
         await message.delete()
         await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
-        title, duration, link = await search_yt(query)
+        
+        # Search for the song on YouTube
+        title, duration, link, thumbnail_url = await search_yt(query)
         if not link:
             await indicator_message.edit("Sorry, no results found for this query.")
             return
 
+        # Retrieve the audio link
         resp, songlink = await ytdl("bestaudio", link)
         if resp == 0:
             await indicator_message.edit("Sorry, unable to retrieve audio link.")
             return
 
+        # Check if there's an active stream
         if chat_id in stream_running:
             logger.info(f"Active stream found in chat {chat_id}, adding {title} to queue.")
             await add_to_queue(chat_id, title, duration, link, 'audio')
             await message.reply(f"**Added to queue:**\n [{title}]({link})\n**Duration: {duration}", disable_web_page_preview=True)
         else:
             logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
+            
+            # Play the song
             await real_pytgcalls.play(chat_id, MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE))
             user = message.from_user.first_name
+
+            # Download the thumbnail
+            thumbnail_file = await download_thumbnail(thumbnail_url)
+
+            # Handle sending the thumbnail
             if thumbnail_file:
-           
-    try:
-            await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
-            except Exception as e:
-            logger.error(f"Error sending thumbnail: {e}")
-            await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str} (Thumbnail failed to load)")
-    finally:
-            os.remove(thumbnail_file)  # Ensure file cleanup in all cases
-        else:
-            await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+                try:
+                    await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration}")
+                except Exception as e:
+                    logger.error(f"Error sending thumbnail: {e}")
+                    await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration} (Thumbnail failed to load)")
+                finally:
+                    os.remove(thumbnail_file)  # Ensure file cleanup in all cases
+            else:
+                await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration}")
+
+            # Update the stream_running dictionary
             stream_running[chat_id] = {
                 "start_time": time.time(),
                 "duration": convert_duration(duration),
@@ -255,11 +267,15 @@ async def play(client, message):
                 "link": link,
                 "type": 'audio'
             }
+
+            # Start polling for the stream status
             asyncio.create_task(poll_stream_status(chat_id, message))
+        
         await indicator_message.delete()
     except Exception as e:
         logger.error(f"Error in play command: {e}")
         await indicator_message.edit(f"Sorry, unable to retrieve. Error: {e}")
+
 
 @app.on_message(filters.command("vplay", PREFIX))
 async def vplay(client, message):

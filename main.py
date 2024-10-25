@@ -70,7 +70,7 @@ async def search_yt(query):
             video_id = video['id']
             thumbnail_url = video['thumbnails'][0]['url']
             link = f"https://www.youtube.com/watch?v={video_id}"
-            return title, duration, link
+            return title, duration, link, thumbnail_url
         else:
             return None, None, None
     except Exception as e:

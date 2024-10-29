@@ -40,8 +40,7 @@ session_string = os.getenv("REAL_SESSION_STRING")
 app = Client("RealAccount", api_id=api_id, api_hash=api_hash, session_string=session_string)
 real_pytgcalls = PyTgCalls(app)
 
-OWNER_ID = 7305252437
-MATRIX_ID = 6432648506
+
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -135,50 +134,6 @@ async def download_thumbnail(url, retries=3):
     return None
 
 
-def create_thumbnail_with_text(img_path, title, requester):
-    """Edit the downloaded thumbnail with a blurred background, title, and requester details."""
-    try:
-        # Load the thumbnail image
-        img = Image.open(img_path).convert("RGBA")
-        
-        # Resize, blur, and use it as a background
-        bg = img.resize((1280, 720), Image.Resampling.LANCZOS)
-        bg = bg.filter(ImageFilter.GaussianBlur(15))  # Adjust blur radius as needed
-        
-        # Overlay the original image as a smaller thumbnail (optional)
-        img = img.resize((640, 360), Image.Resampling.LANCZOS)
-        bg.paste(img, (320, 180))  # Centered
-
-        # Draw overlay text and elements
-        draw = ImageDraw.Draw(bg)
-        font_title = ImageFont.truetype("arial.ttf", 40)
-        font_requester = ImageFont.truetype("arial.ttf", 30)
-        
-        # Draw the title text
-        draw.text((50, 600), f"🎵 {title}", font=font_title, fill="white")
-
-        # Draw the requester name
-        draw.text((50, 650), f"Requested by: {requester}", font=font_requester, fill="lightgray")
-
-        # Draw a simple progress bar (example)
-        progress_width = 400
-        progress_height = 10
-        progress_x = 50
-        progress_y = 690
-        draw.rectangle((progress_x, progress_y, progress_x + progress_width, progress_y + progress_height), fill="gray")
-        draw.rectangle((progress_x, progress_y, progress_x + progress_width // 2, progress_y + progress_height), fill="lime")
-
-        # Save the edited image
-        edited_img_name = f"edited_thumb_{random.randint(1, 10000)}.jpg"
-        bg.save(edited_img_name, "JPEG")
-        
-        return edited_img_name
-    except Exception as e:
-        logger.error(f"Error creating edited thumbnail: {e}")
-        return None
-
-
-
 
 def convert_duration(duration_str):
     parts = duration_str.split(':')
@@ -265,7 +220,6 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         logger.error(f"Error playing media: {e}")
         await message.reply(f"Error playing media: {e}")
 
-@app.on_message(filters.command("play", PREFIX))
 @app.on_message(filters.command("play", PREFIX))
 async def play(client, message):
     global stream_running
@@ -478,35 +432,6 @@ async def loop(client, message):
     else:
         await message.reply("Please provide the number of times to loop the current song.")
 
-@app.on_message(filters.command("seek", PREFIX))
-async def seek(client, message):
-    chat_id = message.chat.id
-    if len(message.command) == 2:
-        time_str = message.command[1]
-        try:
-            # Convert the seek time into seconds
-            seek_time = int(time_str.replace('sec', '').replace('min', '').strip())
-            if 'min' in time_str:
-                seek_time *= 60
-            
-            if chat_id in stream_running:
-                stream_info = stream_running[chat_id]
-                current_time = time.time()
-                elapsed_time = current_time - stream_info["start_time"]
-                new_elapsed_time = elapsed_time + seek_time
-
-                # Ensure the new playback position does not exceed the total duration
-                if new_elapsed_time < stream_info["duration"]:
-                    stream_info["start_time"] = current_time - new_elapsed_time
-                    logger.info(f"Seeked forward by {seek_time} seconds. New start time: {stream_info['start_time']}")
-                else:
-                    await message.reply("Seek time exceeds song duration.")
-            else:
-                await message.reply("No active stream to seek.")
-        except ValueError:
-            await message.reply("Invalid seek time format. Use '10sec' or '1min'.")
-    else:
-        await message.reply("Please provide the time to seek, e.g., .seek 30sec or .seek 1min.")
 
 
 async def main():

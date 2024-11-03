@@ -254,8 +254,6 @@ async def fetch_thumbnail_with_retries(thumbnail_urls, retries=3):
     return None
 
 # Additional functions such as poll_stream_status remain the same
-
-
 @app.on_message(filters.command("play", PREFIX))
 async def play(client, message):
     global stream_running
@@ -283,25 +281,50 @@ async def play(client, message):
             return
 
         requester_name = message.from_user.first_name
+        MAX_TITLE_LENGTH = 30  # Define the maximum length for the title
 
+        # Check if there is an active stream
         if chat_id in stream_running:
             logger.info(f"Active stream found in chat {chat_id}, adding {title} to queue.")
-            await add_to_queue(chat_id, title, duration, link, 'audio')
-            await message.reply(
+            await add_to_queue(chat_id, title, duration, link, thumbnail_url, 'audio')
+
+            # Fetch the thumbnail
+            thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_url) if thumbnail_url else None
+            
+            # Truncate the title if it exceeds the maximum length
+            truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
+
+            queue_caption = (
                 f"➕ **Added to queue:**\n"
-                f"🎶 **Title:** [{title}]({link})\n"
+                f"🎶 **Title:** [{truncated_title}]({link})\n"
                 f"⏱️ **Duration:** {duration}\n"
-                f"👤 **Requested by:** {requester_name}",
-                disable_web_page_preview=True
+                f"👤 **Requested by:** {requester_name}"
             )
+            
+            # Send the thumbnail photo along with the message
+            if thumbnail_file:
+                try:
+                    await message.reply_photo(thumbnail_file, caption=queue_caption)
+                except Exception as e:
+                    logger.error(f"Error sending thumbnail: {e}")
+                    await message.reply(f"{queue_caption}\n⚠️ (Thumbnail failed to load)")
+                finally:
+                    os.remove(thumbnail_file)  # Ensure file cleanup
+            else:
+                await message.reply(queue_caption)
+
         else:
             logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
             await real_pytgcalls.play(chat_id, MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE))
             
             # Only download and send the thumbnail if it exists
             thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_url) if thumbnail_url else None
+            
+            # Truncate the title if it exceeds the maximum length
+            truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
+
             play_caption = (
-                f"▶️ **Now Playing:** [{title}]({link})\n"
+                f"▶️ **Now Playing:** [{truncated_title}]({link})\n"
                 f"⏱️ **Duration:** {duration}\n"
                 f"👤 **Requested by:** {requester_name}"
             )
@@ -316,7 +339,7 @@ async def play(client, message):
                     os.remove(thumbnail_file)  # Ensure file cleanup
             else:
                 await message.reply(play_caption)
-            
+
             stream_running[chat_id] = {
                 "start_time": time.time(),
                 "duration": convert_duration(duration),
@@ -327,11 +350,11 @@ async def play(client, message):
             }
             asyncio.create_task(poll_stream_status(chat_id, message))
         
-        await indicator_message.delete()
+        await indicator_message.delete()  # Move this outside of the try-except block
+
     except Exception as e:
         logger.error(f"Error in play command: {e}")
         await indicator_message.edit(f"⚠️ **An error occurred:** {e}")
-
 
 
 @app.on_message(filters.command("vplay", PREFIX))
@@ -492,4 +515,3 @@ async def main():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
-    

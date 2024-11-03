@@ -146,10 +146,16 @@ def convert_duration(duration_str):
     else:
         return int(parts[0])
 
-async def add_to_queue(chat_id, title, duration, link, media_type):
+async def add_to_queue(chat_id, title, duration, link, media_type, thumbnail_url):
     if chat_id not in queues:
         queues[chat_id] = []
-    queues[chat_id].append({"title": title, "duration": duration, "link": link, "type": media_type})
+    queues[chat_id].append({
+        "title": title,
+        "duration": duration,
+        "link": link,
+        "type": media_type,
+        "thumbnail_url": thumbnail_url  # Store the thumbnail URL
+    })
     logger.info(f"Added to queue: {title} (Duration: {duration}) in chat {chat_id}")
 
 async def poll_stream_status(chat_id, message):
@@ -173,9 +179,18 @@ async def poll_stream_status(chat_id, message):
                 await message.reply("Stream has ended.")
                 break
 
+#Imports and setup remain unchanged
+
 async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
     try:
-        title, duration_str, link, media_type, thumbnail_url = track["title"], track["duration"], track["link"], track.get("thumbnail"), track["type"]
+        title, duration_str, link, media_type, thumbnail_urls = (
+            track["title"], 
+            track["duration"], 
+            track["link"], 
+            track["type"], 
+            track.get("thumbnail_urls", [])
+        )
+        
         duration = convert_duration(duration_str)
         
         # Fetch the audio or video stream link
@@ -183,29 +198,30 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         if resp != 1:
             await message.reply("Error playing the next track in the queue.")
             return
-        
+
+        # Prepare the media stream based on the type
         media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
         await real_pytgcalls.play(chat_id, media_stream)
-        
-        user = message.from_user.first_name
-        thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_url)
 
-        # Thumbnail handling and reply
+        # Try fetching thumbnail, if available
+        thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_urls) if thumbnail_urls else None
+        play_caption = (
+            f"▶️ **Now Playing:** [{title}]({link})\n"
+            f"⏱️ **Duration:** {duration_str}\n"
+            f"👤 **Requested by:** {message.from_user.first_name}"
+        )
+
         if thumbnail_file:
             try:
-                await message.reply_photo(thumbnail_file, caption=f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+                await message.reply_photo(thumbnail_file, caption=play_caption)
             except Exception as e:
                 logger.error(f"Error sending thumbnail: {e}")
-                await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str} (Thumbnail failed to load)")
+                await message.reply(f"{play_caption}\n⚠️ (Thumbnail failed to load)")
             finally:
-                os.remove(thumbnail_file)  # Ensure file cleanup in all cases
+                os.remove(thumbnail_file)
         else:
-            await message.reply(f"**Playing:** [{title}]({link})\n**Duration:** {duration_str}")
+            await message.reply(play_caption)
 
-        # If not called from the loop, send the reply message
-        if not from_loop:
-            await message.reply(reply_message, disable_web_page_preview=True)
-        
         # Update stream running details for tracking
         stream_running[chat_id] = {
             "start_time": time.time() - seek_time,
@@ -222,22 +238,22 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         logger.error(f"Error playing media: {e}")
         await message.reply(f"Error playing media: {e}")
 
-async def fetch_thumbnail_with_retries(thumbnail_url, retries=3):
-    """Attempt to download the thumbnail with retries if it fails."""
-    if not thumbnail_url:
-        return None
 
-    for attempt in range(retries):
-        try:
-            thumbnail_file = await download_thumbnail(thumbnail_url)
-            if thumbnail_file:
-                return thumbnail_file
-        except Exception as e:
-            logger.warning(f"Thumbnail download failed on attempt {attempt + 1}: {e}")
-        await asyncio.sleep(1)  # Short delay before retrying
-    
+async def fetch_thumbnail_with_retries(thumbnail_urls, retries=3):
+    """Attempt to download the thumbnail with retries if it fails."""
+    for url in thumbnail_urls:
+        for attempt in range(retries):
+            try:
+                thumbnail_file = await download_thumbnail([url])
+                if thumbnail_file:
+                    return thumbnail_file
+            except Exception as e:
+                logger.warning(f"Thumbnail download failed on attempt {attempt + 1} for URL {url}: {e}")
+            await asyncio.sleep(1)
     logger.error(f"Failed to download thumbnail after {retries} attempts")
-    return None  # Return None if all attempts fail
+    return None
+
+# Additional functions such as poll_stream_status remain the same
 
 
 @app.on_message(filters.command("play", PREFIX))
@@ -476,3 +492,4 @@ async def main():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
+    

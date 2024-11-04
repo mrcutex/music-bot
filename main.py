@@ -182,27 +182,24 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
 from PIL import Image, ImageDraw, ImageFont
 import time
 
-async def create_thumbnail(title, duration, requester_name):
+#from PIL import Image, ImageDraw, ImageFont
+
+async def create_thumbnail(title):
     # Open the template image
     template_path = 'banner.webp'  # Replace with your template image path
     template = Image.open(template_path).convert("RGBA")
     
-    # Define fonts and sizes
-    title_font = ImageFont.truetype("DejaVuSans.ttf", 40)  # Use your desired font path and size
-    small_font = ImageFont.truetype("DejaVuSans.ttf", 28)
+    # Define font and size for the title
+    title_font = ImageFont.truetype("DejaVuSans.ttf", 36)  # Adjust size for optimal appearance
 
     # Draw text on the image
     draw = ImageDraw.Draw(template)
     
-    # Define text positions and alignments
-    title_position = (50, 100)  # Adjust as needed
-    duration_position = (50, 180)  # Adjust as needed
-    requester_position = (50, 250)  # Adjust as needed
+    # Define the position for the song title text based on your layout
+    title_position = (300, 50)  # Adjust this position as needed for best placement on your banner
 
-    # Add the title, duration, and requester text to the image
-    draw.text(title_position, f"Title: {title}", font=title_font, fill="white")
-    draw.text(duration_position, f"Duration: {duration}", font=small_font, fill="white")
-    draw.text(requester_position, f"Requested by: {requester_name}", font=small_font, fill="white")
+    # Add the song title to the image
+    draw.text(title_position, f"{title}", font=title_font, fill="white")
 
     # Save the updated thumbnail
     output_path = 'output_thumbnail.png'
@@ -216,7 +213,7 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         requester_name = message.from_user.first_name
         
         # Create thumbnail with aligned title and other info
-        thumbnail_path = await create_thumbnail(title, duration_str, requester_name)
+        thumbnail_path = await create_thumbnail(title)
 
         # Stream preparation code
         resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)

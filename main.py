@@ -193,7 +193,7 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         await real_pytgcalls.play(chat_id, media_stream)
         truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
         reply_message = (
-                f"[ ➲ **Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ** |](https://t.me/mrcutex)\n\n"
+                f"**[ ➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ |](https://t.me/mrcutex)**\n\n"
                 f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
                 f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
                 f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
@@ -235,7 +235,7 @@ async def fetch_thumbnail_with_retries(thumbnail_urls, retries=3):
 async def play(client, message):
     global stream_running
     if len(message.command) < 2:
-        await message.reply("Lᴏʟ🥲! Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴍᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.")
+        await message.reply("**Lᴏʟ🥲! Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴍᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.**")
         return
 
     chat_id = message.chat.id
@@ -272,7 +272,7 @@ async def play(client, message):
             truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
 
             queue_caption = (
-                f"➜**Aᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ:**\n\n"
+                f"➜ **Aᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ:**\n\n"
                 f"➤ **Tɪᴛʟᴇ:** [{truncated_title}]({link})\n"
                 f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
                 f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
@@ -293,7 +293,7 @@ async def play(client, message):
             truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
 
             play_caption = (
-                f"[ ➲ **Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ** |](https://t.me/mrcutex)\n\n"
+                f"**[ ➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ |](https://t.me/mrcutex)**\n\n"
                 f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
                 f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
                 f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
@@ -368,7 +368,7 @@ async def play(client, message):
             truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
 
             queue_caption = (
-                f"➜**Aᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ:**\n\n"
+                f"➜ **Aᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ:**\n\n"
                 f"➤ **Tɪᴛʟᴇ:** [{truncated_title}]({link})\n"
                 f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
                 f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"

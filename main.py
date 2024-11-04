@@ -181,8 +181,18 @@ async def poll_stream_status(chat_id, message):
 
 #Imports and setup remain unchanged
 
-async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
+async def play_media(chat_id, track=None, message=None, from_loop=False, seek_time=0):
     try:
+        # Fetch the track details if they are not provided
+        if not track:
+            if not message:
+                raise ValueError("Track information or a valid message is required.")
+            track = await fetch_track_details(message)  # Assuming `fetch_track_details` is a function to get song info
+            if not track:
+                await message.reply("Could not fetch track details. Please try again.")
+                return
+        
+        # Extract details from the track
         title, duration_str, link, media_type, thumbnail_urls = (
             track["title"], 
             track["duration"], 
@@ -203,8 +213,15 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
         await real_pytgcalls.play(chat_id, media_stream)
 
-        # Try fetching thumbnail, if available
-        thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_urls) if thumbnail_urls else None
+        # Try fetching the thumbnail if URLs are available
+        thumbnail_file = None
+        if thumbnail_urls:
+            try:
+                thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_urls)
+            except Exception as e:
+                logger.error(f"Error fetching thumbnail: {e}")
+
+        # Prepare the caption and send the message with or without the thumbnail
         play_caption = (
             f"▶️ **Now Playing:** [{title}]({link})\n"
             f"⏱️ **Duration:** {duration_str}\n"
@@ -218,7 +235,8 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
                 logger.error(f"Error sending thumbnail: {e}")
                 await message.reply(f"{play_caption}\n⚠️ (Thumbnail failed to load)")
             finally:
-                os.remove(thumbnail_file)
+                if os.path.exists(thumbnail_file):
+                    os.remove(thumbnail_file)
         else:
             await message.reply(play_caption)
 
@@ -499,19 +517,4 @@ async def loop(client, message):
         else:
             await message.reply("No active stream to loop.")
     else:
-        await message.reply("Please provide the number of times to loop the current song.")
-
-
-
-async def main():
-    await app.start()
-    await real_pytgcalls.start()
-    print("Real app and PyTgCalls started")
-   # asyncio.create_task(send_auto_messages())
-    
-    await idle()
-    await app.stop()
-
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+        await message.reply("Please provide the number 

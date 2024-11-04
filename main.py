@@ -179,28 +179,67 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
     logger.info(f"Added to queue: {title} (Duration: {duration}) in chat {chat_id}")
 
 
-#async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
+from PIL import Image, ImageDraw, ImageFont
+import time
+
+async def create_thumbnail(title, duration, requester_name):
+    # Open the template image
+    template_path = 'banner.webp'  # Replace with your template image path
+    template = Image.open(template_path).convert("RGBA")
+    
+    # Define fonts and sizes
+    title_font = ImageFont.truetype("/path/to/font.ttf", 40)  # Use your desired font path and size
+    small_font = ImageFont.truetype("/path/to/font.ttf", 28)
+
+    # Draw text on the image
+    draw = ImageDraw.Draw(template)
+    
+    # Define text positions and alignments
+    title_position = (50, 100)  # Adjust as needed
+    duration_position = (50, 180)  # Adjust as needed
+    requester_position = (50, 250)  # Adjust as needed
+
+    # Add the title, duration, and requester text to the image
+    draw.text(title_position, f"Title: {title}", font=title_font, fill="white")
+    draw.text(duration_position, f"Duration: {duration}", font=small_font, fill="white")
+    draw.text(requester_position, f"Requested by: {requester_name}", font=small_font, fill="white")
+
+    # Save the updated thumbnail
+    output_path = 'output_thumbnail.png'
+    template.save(output_path, "PNG")
+    return output_path
+
 async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
     try:
         title, duration_str, link, media_type = track["title"], track["duration"], track["link"], track["type"]
         duration = convert_duration(duration_str)
         requester_name = message.from_user.first_name
+        
+        # Create thumbnail with aligned title and other info
+        thumbnail_path = await create_thumbnail(title, duration_str, requester_name)
+
+        # Stream preparation code
         resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)
         if resp != 1:
             await message.reply("Error playing the next track in the queue.")
             return
+        
+        # Use the generated thumbnail
         media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
         await real_pytgcalls.play(chat_id, media_stream)
-        truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
-        reply_message = (
-                f"**[ ➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ |](https://t.me/mrcutex)**\n\n"
-                f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
-                f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
-                f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
-            )
         
+        reply_message = (
+            f"**[ ➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ |](https://t.me/mrcutex)**\n\n"
+            f"➤ **Tɪᴛʟᴇ :** [{title}]({link})\n"
+            f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration_str}\n"
+            f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
+        )
+
+        # Send the message with the thumbnail
         if not from_loop:
-            await message.reply(reply_message, disable_web_page_preview=True)
+            await message.reply_photo(photo=thumbnail_path, caption=reply_message)
+        
+        # Store stream info
         stream_running[chat_id] = {
             "start_time": time.time() - seek_time,
             "duration": duration,
@@ -210,10 +249,10 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
             "type": media_type
         }
         logger.info(f"Started playing: {title} (Duration: {duration_str}) in chat {chat_id}")
+        
     except Exception as e:
         logger.error(f"Error playing media: {e}")
         await message.reply(f"Error playing media: {e}")
-
 
 
 async def fetch_thumbnail_with_retries(thumbnail_urls, retries=3):

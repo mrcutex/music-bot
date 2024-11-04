@@ -146,17 +146,6 @@ def convert_duration(duration_str):
     else:
         return int(parts[0])
 
-async def add_to_queue(chat_id, title, duration, link, media_type, thumbnail_url):
-    if chat_id not in queues:
-        queues[chat_id] = []
-    queues[chat_id].append({
-        "title": title,
-        "duration": duration,
-        "link": link,
-        "type": media_type,
-        "thumbnail_url": thumbnail_url  # Store the thumbnail URL
-    })
-    logger.info(f"Added to queue: {title} (Duration: {duration}) in chat {chat_id}")
 
 async def poll_stream_status(chat_id, message):
     while chat_id in stream_running:
@@ -181,53 +170,59 @@ async def poll_stream_status(chat_id, message):
 
 #Imports and setup remain unchanged
 
+async def add_to_queue(chat_id, title, duration, link, media_type, thumbnail_urls):
+    if chat_id not in queues:
+        queues[chat_id] = []
+    queues[chat_id].append({
+        "title": title,
+        "duration": duration,
+        "link": link,
+        "type": media_type,
+        "thumbnail_urls": thumbnail_urls  # Ensure thumbnail URLs are stored
+    })
+    logger.info(f"Added to queue: {title} (Duration: {duration}) in chat {chat_id}")
+
 async def play_media(chat_id, track=None, message=None, from_loop=False, seek_time=0):
     try:
-        # Fetch the track details if they are not provided
+        # Fetch track details if not directly provided
         if not track:
             if not message:
                 raise ValueError("Track information or a valid message is required.")
-            track = await fetch_track_details(message)  # Assuming `fetch_track_details` is a function to get song info
+            track = await fetch_track_details(message)
             if not track:
                 await message.reply("Could not fetch track details. Please try again.")
                 return
         
-        # Extract details from the track
-        title, duration_str, link, media_type, thumbnail_urls = (
-            track["title"], 
-            track["duration"], 
-            track["link"], 
-            track["type"], 
-            track.get("thumbnail_urls", [])
-        )
-        
+        # Unpack track information
+        title = track["title"]
+        duration_str = track["duration"]
+        link = track["link"]
+        media_type = track["type"]
+        thumbnail_urls = track.get("thumbnail_urls", [])
+
+        # Convert duration to seconds
         duration = convert_duration(duration_str)
-        
-        # Fetch the audio or video stream link
+
+        # Fetch the appropriate media stream link
         resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)
         if resp != 1:
             await message.reply("Error playing the next track in the queue.")
             return
 
-        # Prepare the media stream based on the type
+        # Prepare media stream
         media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
         await real_pytgcalls.play(chat_id, media_stream)
 
-        # Try fetching the thumbnail if URLs are available
-        thumbnail_file = None
-        if thumbnail_urls:
-            try:
-                thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_urls)
-            except Exception as e:
-                logger.error(f"Error fetching thumbnail: {e}")
+        # Attempt to fetch a thumbnail
+        thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_urls) if thumbnail_urls else None
 
-        # Prepare the caption and send the message with or without the thumbnail
+        # Send playback message with or without thumbnail
         play_caption = (
             f"▶️ **Now Playing:** [{title}]({link})\n"
             f"⏱️ **Duration:** {duration_str}\n"
             f"👤 **Requested by:** {message.from_user.first_name}"
         )
-
+        
         if thumbnail_file:
             try:
                 await message.reply_photo(thumbnail_file, caption=play_caption)
@@ -240,7 +235,7 @@ async def play_media(chat_id, track=None, message=None, from_loop=False, seek_ti
         else:
             await message.reply(play_caption)
 
-        # Update stream running details for tracking
+        # Update stream details for ongoing tracking
         stream_running[chat_id] = {
             "start_time": time.time() - seek_time,
             "duration": duration,
@@ -251,11 +246,10 @@ async def play_media(chat_id, track=None, message=None, from_loop=False, seek_ti
         }
         
         logger.info(f"Started playing: {title} (Duration: {duration_str}) in chat {chat_id}")
-    
+
     except Exception as e:
         logger.error(f"Error playing media: {e}")
         await message.reply(f"Error playing media: {e}")
-
 
 async def fetch_thumbnail_with_retries(thumbnail_urls, retries=3):
     """Attempt to download the thumbnail with retries if it fails."""

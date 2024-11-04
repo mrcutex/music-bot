@@ -517,4 +517,19 @@ async def loop(client, message):
         else:
             await message.reply("No active stream to loop.")
     else:
-        await message.reply("Please provide the number 
+        await message.reply("Please provide the number of times to loop the current song.")
+
+
+
+async def main():
+    await app.start()
+    await real_pytgcalls.start()
+    print("Real app and PyTgCalls started")
+   # asyncio.create_task(send_auto_messages())
+    
+    await idle()
+    await app.stop()
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

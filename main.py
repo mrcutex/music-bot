@@ -261,7 +261,7 @@ async def play(client, message):
         # Check if there is an active stream
         if chat_id in stream_running:
             logger.info(f"Active stream found in chat {chat_id}, adding {title} to queue.")
-            await add_to_queue(chat_id, title, duration, link, thumbnail_url, 'audio')
+            await add_to_queue(chat_id, title, duration, link, 'audio')
 
             # Fetch the thumbnail
             thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_url) if thumbnail_url else None

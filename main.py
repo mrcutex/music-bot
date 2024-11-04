@@ -184,22 +184,25 @@ import time
 
 #from PIL import Image, ImageDraw, ImageFont
 
+#from PIL import Image, ImageDraw, ImageFont
+
 async def create_thumbnail(title):
     # Open the template image
-    template_path = 'banner.webp'  # Replace with your template image path
+    template_path = 'banner.png'  # Replace with your template image path
     template = Image.open(template_path).convert("RGBA")
     
     # Define font and size for the title
-    title_font = ImageFont.truetype("DejaVuSans.ttf", 36)  # Adjust size for optimal appearance
+    title_font = ImageFont.truetype("DejaVuSans.ttf", 36)  # Adjust size as needed
 
     # Draw text on the image
     draw = ImageDraw.Draw(template)
-    
-    # Define the position for the song title text based on your layout
-    title_position = (300, 50)  # Adjust this position as needed for best placement on your banner
+
+    # Calculate position for bottom-center alignment
+    text_width, text_height = draw.textsize(title, font=title_font)
+    title_position = ((template.width - text_width) // 2, template.height - text_height - 30)  # Adjust bottom margin (30 pixels)
 
     # Add the song title to the image
-    draw.text(title_position, f"{title}", font=title_font, fill="white")
+    draw.text(title_position, title, font=title_font, fill="white")
 
     # Save the updated thumbnail
     output_path = 'output_thumbnail.png'

@@ -231,7 +231,7 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
             "title": title,
             "duration_str": duration_str,
             "link": link,
-            "type": media_type
+            "type": media_type,
             "thumbnail_urls": thumbnail_urls
         }
         

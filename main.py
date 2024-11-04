@@ -53,7 +53,7 @@ _boot_ = time.time()
 PREFIX = ["/", "#", "!", "."]
 app.set_parse_mode(enums.ParseMode.MARKDOWN)
 bot_start_time = time.time()
-
+MAX_TITLE_LENGTH = 15
 # Helper functions
 async def search_yt(query):
     try:
@@ -170,36 +170,33 @@ async def poll_stream_status(chat_id, message):
 
 #Imports and setup remain unchanged
 
-async def add_to_queue(chat_id, title, duration, link, media_type, thumbnail_urls):
+async def add_to_queue(chat_id, title, duration, link, media_type):
     if chat_id not in queues:
         queues[chat_id] = []
-    queues[chat_id].append({
-        "title": title,
-        "duration": duration,
-        "link": link,
-        "type": media_type,
-        "thumbnail_urls": thumbnail_urls  # Ensure thumbnail URLs are stored
-    })
+    queues[chat_id].append({"title": title, "duration": duration, "link": link, "type": media_type})
     logger.info(f"Added to queue: {title} (Duration: {duration}) in chat {chat_id}")
-# Imports and setup remain unchanged
+
 
 #async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
 async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
     try:
         title, duration_str, link, media_type = track["title"], track["duration"], track["link"], track["type"]
         duration = convert_duration(duration_str)
+        requester_name = message.from_user.first_name
         resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)
         if resp != 1:
             await message.reply("Error playing the next track in the queue.")
             return
         media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
         await real_pytgcalls.play(chat_id, media_stream)
-        user = message.from_user.first_name
+        truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
         reply_message = (
-            f"**Playing:** [{title}]({link})\n"
-            f"**Duration:** {duration_str}\n"
-            f"**Played By:** {user}"
-        )
+                f"**➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ**\n\n"
+                f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
+                f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
+                f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
+            )
+        
         if not from_loop:
             await message.reply(reply_message, disable_web_page_preview=True)
         stream_running[chat_id] = {
@@ -259,7 +256,7 @@ async def play(client, message):
             return
 
         requester_name = message.from_user.first_name
-        MAX_TITLE_LENGTH = 30  # Define the maximum length for the title
+          # Define the maximum length for the title
 
         # Check if there is an active stream
         if chat_id in stream_running:
@@ -273,23 +270,15 @@ async def play(client, message):
             truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
 
             queue_caption = (
-                f"➕ **Added to queue:**\n"
-                f"🎶 **Title:** [{truncated_title}]({link})\n"
-                f"⏱️ **Duration:** {duration}\n"
-                f"👤 **Requested by:** {requester_name}"
+                f"➜**Aᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ:**\n\n"
+                f"➤ **Tɪᴛʟᴇ:** [{truncated_title}]({link})\n"
+                f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
+                f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
             )
             
             # Send the thumbnail photo along with the message
-            if thumbnail_file:
-                try:
-                    await message.reply_photo(thumbnail_file, caption=queue_caption)
-                except Exception as e:
-                    logger.error(f"Error sending thumbnail: {e}")
-                    await message.reply(f"{queue_caption}\n⚠️ (Thumbnail failed to load)")
-                finally:
-                    os.remove(thumbnail_file)  # Ensure file cleanup
-            else:
-                await message.reply(queue_caption)
+        
+            await message.reply(queue_caption)
 
         else:
             logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
@@ -302,9 +291,10 @@ async def play(client, message):
             truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
 
             play_caption = (
-                f"▶️ **Now Playing:** [{truncated_title}]({link})\n"
-                f"⏱️ **Duration:** {duration}\n"
-                f"👤 **Requested by:** {requester_name}"
+                f"**➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ**\n\n"
+                f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
+                f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
+                f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
             )
 
             if thumbnail_file:

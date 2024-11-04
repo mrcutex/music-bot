@@ -54,6 +54,8 @@ PREFIX = ["/", "#", "!", "."]
 app.set_parse_mode(enums.ParseMode.MARKDOWN)
 bot_start_time = time.time()
 MAX_TITLE_LENGTH = 15
+CLINK = "https://t.me/mrcutex"
+
 # Helper functions
 async def search_yt(query):
     try:
@@ -191,7 +193,7 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         await real_pytgcalls.play(chat_id, media_stream)
         truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
         reply_message = (
-                f"**➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ**\n\n"
+                f"**➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ  |**\n\n"
                 f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
                 f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
                 f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
@@ -233,26 +235,26 @@ async def fetch_thumbnail_with_retries(thumbnail_urls, retries=3):
 async def play(client, message):
     global stream_running
     if len(message.command) < 2:
-        await message.reply("Please provide a song name.")
+        await message.reply("Lᴏʟ🥲! Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴍᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.")
         return
 
     chat_id = message.chat.id
     query = message.text.split(" ", 1)[1]
-    indicator_message = await message.reply("🔍 **Searching for the song...**")
+    indicator_message = await message.reply("♫︎♫︎ **Sᴇᴀʀᴄʜɪɴɢ ғᴏʀ ᴛʜᴇ sᴏɴɢ...** ♫︎♫︎")
 
     try:
         await message.delete()
         await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
         
         title, duration, link, thumbnail_url = await search_yt(query)
-        
+        await indicator_message.edit("Pʟᴇᴀsᴇ ᴡᴀɪᴛ...")
         if not link:
-            await indicator_message.edit("❌ **No results found for this query.**")
+            await indicator_message.edit("❌ No results found for this query.")
             return
 
         resp, songlink = await ytdl("bestaudio", link)
         if resp == 0:
-            await indicator_message.edit("⚠️ **Unable to retrieve audio link.**")
+            await indicator_message.edit("⚠️ Unable to retrieve audio link.")
             return
 
         requester_name = message.from_user.first_name
@@ -278,7 +280,7 @@ async def play(client, message):
             
             # Send the thumbnail photo along with the message
         
-            await message.reply(queue_caption)
+            await message.reply(queue_caption, disable_web_page_preview=True)
 
         else:
             logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
@@ -291,7 +293,7 @@ async def play(client, message):
             truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
 
             play_caption = (
-                f"**➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ**\n\n"
+                f"[**➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ  |**](https://t.me/mrcutex)\n\n"
                 f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
                 f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
                 f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
@@ -326,43 +328,84 @@ async def play(client, message):
 
 
 @app.on_message(filters.command("vplay", PREFIX))
-async def vplay(client, message):
+async def play(client, message):
     global stream_running
     if len(message.command) < 2:
-        await message.reply("Please provide a song name.")
+        await message.reply("Lᴏʟ🥲! Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴍᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.")
         return
 
     chat_id = message.chat.id
     query = message.text.split(" ", 1)[1]
-    indicator_message = await message.reply("Searching for the song...")
+    indicator_message = await message.reply("♫︎♫︎ **Sᴇᴀʀᴄʜɪɴɢ ғᴏʀ ᴛʜᴇ sᴏɴɢ...** ♫︎♫︎")
 
     try:
         await message.delete()
         await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
-        title, duration, link = await search_yt(query)
+        
+        title, duration, link, thumbnail_url = await search_yt(query)
+        await indicator_message.edit("Pʟᴇᴀsᴇ ᴡᴀɪᴛ...")
         if not link:
-            await indicator_message.edit("Sorry, no results found for this query.")
+            await indicator_message.edit("❌ **No results found for this query.**")
             return
 
         resp, songlink = await ytdl("bestvideo", link)
         if resp == 0:
-            await indicator_message.edit("Sorry, unable to retrieve video link.")
+            await indicator_message.edit("⚠️ **Unable to retrieve audio link.**")
             return
 
+        requester_name = message.from_user.first_name
+          # Define the maximum length for the title
+
+        # Check if there is an active stream
         if chat_id in stream_running:
             logger.info(f"Active stream found in chat {chat_id}, adding {title} to queue.")
             await add_to_queue(chat_id, title, duration, link, 'video')
-            await message.reply(f"**Added to queue:**\n **Title**: [{title}]({link})\n**Duration:** {duration}", disable_web_page_preview=True)
+
+            # Fetch the thumbnail
+            thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_url) if thumbnail_url else None
+            
+            # Truncate the title if it exceeds the maximum length
+            truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
+
+            queue_caption = (
+                f"➜**Aᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ:**\n\n"
+                f"➤ **Tɪᴛʟᴇ:** [{truncated_title}]({link})\n"
+                f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
+                f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
+            )
+            
+            # Send the thumbnail photo along with the message
+        
+            await message.reply(queue_caption, disable_web_page_preview=True)
+
         else:
             logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
-            await real_pytgcalls.play(chat_id, MediaStream(songlink))
-            user = message.from_user.first_name
-            reply_message = (
-                f"**Playing:** [{title}]({link})\n"
-                f"**Duration:** {duration}\n"
-                f"**Played By:** {user}"
+            await real_pytgcalls.play(chat_id, MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE))
+            
+            # Only download and send the thumbnail if it exists
+            thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_url) if thumbnail_url else None
+            
+            # Truncate the title if it exceeds the maximum length
+            truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
+
+            play_caption = (
+                f"**➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ  |**\n\n"
+                f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
+                f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration}\n"
+                f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
             )
-            await message.reply(reply_message, disable_web_page_preview=True)
+
+            if thumbnail_file:
+                try:
+                    await message.reply_photo(thumbnail_file, caption=play_caption)
+                except Exception as e:
+                    logger.error(f"Error sending thumbnail: {e}")
+                    await message.reply(f"{play_caption}\n⚠️ (Thumbnail failed to load)")
+                finally:
+                    os.remove(thumbnail_file)  # Ensure file cleanup
+            else:
+                await message.reply(play_caption)
+
             stream_running[chat_id] = {
                 "start_time": time.time(),
                 "duration": convert_duration(duration),
@@ -372,10 +415,12 @@ async def vplay(client, message):
                 "type": 'video'
             }
             asyncio.create_task(poll_stream_status(chat_id, message))
-        await indicator_message.delete()
+        
+        await indicator_message.delete()  # Move this outside of the try-except block
+
     except Exception as e:
-        logger.error(f"Error in vplay command: {e}")
-        await indicator_message.edit(f"Sorry, unable to retrieve. Error: {e}")
+        logger.error(f"Error in play command: {e}")
+        await indicator_message.edit(f"⚠️ **An error occurred:** {e}")
 
 @app.on_message(filters.command("skip", PREFIX))
 async def skip(client, message):

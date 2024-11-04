@@ -188,8 +188,8 @@ async def create_thumbnail(title, duration, requester_name):
     template = Image.open(template_path).convert("RGBA")
     
     # Define fonts and sizes
-    title_font = ImageFont.truetype("/path/to/font.ttf", 40)  # Use your desired font path and size
-    small_font = ImageFont.truetype("/path/to/font.ttf", 28)
+    title_font = ImageFont.truetype("DejaVuSans.ttf", 40)  # Use your desired font path and size
+    small_font = ImageFont.truetype("DejaVuSans.ttf", 28)
 
     # Draw text on the image
     draw = ImageDraw.Draw(template)

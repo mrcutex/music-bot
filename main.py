@@ -187,8 +187,8 @@ async def create_thumbnail(title, duration):
     
     # Define font for title and duration
     title_font_path = "DejaVuSans-Bold.ttf"  # Replace with your bold font path
-    title_font = ImageFont.truetype(title_font_path, 110)  # Large font for title
-    duration_font = ImageFont.truetype("DejaVuSans.ttf", 70)  # Smaller font for duration
+    title_font = ImageFont.truetype(title_font_path, 30)  # Large font for title
+    duration_font = ImageFont.truetype("DejaVuSans.ttf", 20)  # Smaller font for duration
 
     # Truncate the title if it exceeds 22 characters
     max_title_length = 22
@@ -204,7 +204,7 @@ async def create_thumbnail(title, duration):
     duration_text_width = duration_text_bbox[2] - duration_text_bbox[0]
 
     # Define vertical positions for title and duration with margin adjustments
-    bottom_margin = 250  # Adjusted bottom margin
+    bottom_margin = 150  # Adjusted bottom margin
     title_position = ((template.width - title_text_width) // 2, template.height - title_text_bbox[3] - bottom_margin)
     duration_position = ((template.width - duration_text_width) // 2, title_position[1] + title_text_bbox[3] + 10)
 

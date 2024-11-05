@@ -182,13 +182,10 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
 from PIL import Image, ImageDraw, ImageFont
 import time
 
-#from PIL import Image, ImageDraw, ImageFont
-
-#from PIL import Image, ImageDraw, ImageFont
 
 async def create_thumbnail(title):
     # Open the template image
-    template_path = 'banner.png'  # Replace with your template image path
+    template_path = 'banner.webp'  # Replace with your template image path
     template = Image.open(template_path).convert("RGBA")
     
     # Define font and size for the title
@@ -197,9 +194,10 @@ async def create_thumbnail(title):
     # Draw text on the image
     draw = ImageDraw.Draw(template)
 
-    # Calculate position for bottom-center alignment
-    text_width, text_height = draw.textsize(title, font=title_font)
-    title_position = ((template.width - text_width) // 2, template.height - text_height - 30)  # Adjust bottom margin (30 pixels)
+    # Calculate position for bottom-center alignment using textbbox
+    text_bbox = draw.textbbox((0, 0), title, font=title_font)
+    text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
+    title_position = ((template.width - text_width) // 2, template.height - text_height - 30)  # Adjust bottom margin
 
     # Add the song title to the image
     draw.text(title_position, title, font=title_font, fill="white")

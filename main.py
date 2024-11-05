@@ -228,7 +228,7 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         requester_name = message.from_user.first_name
         
         # Create thumbnail with aligned title and other info
-        thumbnail_path = await create_thumbnail(title, duration)
+        thumbnail_path = await create_thumbnail(title, duration_str)
 
         # Stream preparation code
         resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)

@@ -185,7 +185,7 @@ import time
 
 async def create_thumbnail(title):
     # Open the template image
-    template_path = 'banner.webp'  # Replace with your template image path
+    template_path = 'banner.png'  # Replace with your template image path
     template = Image.open(template_path).convert("RGBA")
     
     # Define font and size for the title

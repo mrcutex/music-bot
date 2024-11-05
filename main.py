@@ -197,7 +197,7 @@ async def create_thumbnail(title):
     # Calculate position for bottom-center alignment with more margin
     text_bbox = draw.textbbox((0, 0), title, font=title_font)
     text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
-    bottom_margin = 50  # Extra space from the bottom
+    bottom_margin = 250  # Extra space from the bottom
     title_position = ((template.width - text_width) // 2, template.height - text_height - bottom_margin)
 
     # Add the song title to the image with a bold effect

@@ -180,33 +180,41 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
     logger.info(f"Added to queue: {title} (Duration: {duration}) in chat {chat_id}")
 
 
-from PIL import Image, ImageDraw, ImageFont
-import time
-
-async def create_thumbnail(title):
+async def create_thumbnail(title, duration):
     # Open the template image
     template_path = 'banner.png'  # Replace with your template image path
     template = Image.open(template_path).convert("RGBA")
     
-    # Define font with a larger size and bold style if available
+    # Define font for title and duration
     title_font_path = "DejaVuSans-Bold.ttf"  # Replace with your bold font path
-    title_font = ImageFont.truetype(title_font_path, 110)  # Increased font size for visibility
+    title_font = ImageFont.truetype(title_font_path, 110)  # Large font for title
+    duration_font = ImageFont.truetype("DejaVuSans.ttf", 70)  # Smaller font for duration
+
+    # Truncate the title if it exceeds 22 characters
+    max_title_length = 22
+    truncated_title = title if len(title) <= max_title_length else title[:max_title_length] + '...'
 
     # Draw text on the image
     draw = ImageDraw.Draw(template)
 
-    # Calculate position for bottom-center alignment with more margin
-    text_bbox = draw.textbbox((0, 0), title, font=title_font)
-    text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
-    bottom_margin = 190  # Extra space from the bottom
-    title_position = ((template.width - text_width) // 2, template.height - text_height - bottom_margin)
-    truncated_title = title if len(title) <= MAX_TITLE_LENGTHH else title[:MAX_TITLE_LENGTHH] + '...'
-       
-    # Add the song title to the image with a bold effect
-    # Draw the text multiple times with slight offsets for a bolder look (pseudo-bold effect)
-    offsets = [(0, 0), (1, 0), (0, 1), (1, 1)]  # Slight offsets for bold effect
+    # Calculate width for horizontal centering of title and duration texts
+    title_text_bbox = draw.textbbox((0, 0), truncated_title, font=title_font)
+    title_text_width = title_text_bbox[2] - title_text_bbox[0]
+    duration_text_bbox = draw.textbbox((0, 0), f"Duration: {duration}", font=duration_font)
+    duration_text_width = duration_text_bbox[2] - duration_text_bbox[0]
+
+    # Define vertical positions for title and duration with margin adjustments
+    bottom_margin = 250  # Adjusted bottom margin
+    title_position = ((template.width - title_text_width) // 2, template.height - title_text_bbox[3] - bottom_margin)
+    duration_position = ((template.width - duration_text_width) // 2, title_position[1] + title_text_bbox[3] + 10)
+
+    # Draw the title text with a pseudo-bold effect
+    offsets = [(0, 0), (1, 0), (0, 1), (1, 1)]
     for offset in offsets:
         draw.text((title_position[0] + offset[0], title_position[1] + offset[1]), truncated_title, font=title_font, fill="white")
+
+    # Draw the duration text centered below the title
+    draw.text(duration_position, f"Duration: {duration}", font=duration_font, fill="white")
 
     # Save the updated thumbnail
     output_path = 'output_thumbnail.png'
@@ -220,7 +228,7 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         requester_name = message.from_user.first_name
         
         # Create thumbnail with aligned title and other info
-        thumbnail_path = await create_thumbnail(title)
+        thumbnail_path = await create_thumbnail(title, duration)
 
         # Stream preparation code
         resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)

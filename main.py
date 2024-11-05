@@ -54,6 +54,7 @@ PREFIX = ["/", "#", "!", "."]
 app.set_parse_mode(enums.ParseMode.MARKDOWN)
 bot_start_time = time.time()
 MAX_TITLE_LENGTH = 20
+MAX_TITLE_LENGTHH = 30
 CLINK = "https://t.me/mrcutex"
 
 # Helper functions
@@ -189,7 +190,7 @@ async def create_thumbnail(title):
     
     # Define font with a larger size and bold style if available
     title_font_path = "DejaVuSans-Bold.ttf"  # Replace with your bold font path
-    title_font = ImageFont.truetype(title_font_path, 120)  # Increased font size for visibility
+    title_font = ImageFont.truetype(title_font_path, 110)  # Increased font size for visibility
 
     # Draw text on the image
     draw = ImageDraw.Draw(template)
@@ -199,12 +200,13 @@ async def create_thumbnail(title):
     text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
     bottom_margin = 190  # Extra space from the bottom
     title_position = ((template.width - text_width) // 2, template.height - text_height - bottom_margin)
-
+    truncated_title = title if len(title) <= MAX_TITLE_LENGTHH else title[:MAX_TITLE_LENGTHH] + '...'
+       
     # Add the song title to the image with a bold effect
     # Draw the text multiple times with slight offsets for a bolder look (pseudo-bold effect)
     offsets = [(0, 0), (1, 0), (0, 1), (1, 1)]  # Slight offsets for bold effect
     for offset in offsets:
-        draw.text((title_position[0] + offset[0], title_position[1] + offset[1]), title, font=title_font, fill="white")
+        draw.text((title_position[0] + offset[0], title_position[1] + offset[1]), truncated_title, font=title_font, fill="white")
 
     # Save the updated thumbnail
     output_path = 'output_thumbnail.png'

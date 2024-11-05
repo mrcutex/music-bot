@@ -187,8 +187,8 @@ async def create_thumbnail(title, duration):
     
     # Define font for title and duration
     title_font_path = "DejaVuSans-Bold.ttf"  # Replace with your bold font path
-    title_font = ImageFont.truetype(title_font_path, 30)  # Large font for title
-    duration_font = ImageFont.truetype("DejaVuSans.ttf", 20)  # Smaller font for duration
+    title_font = ImageFont.truetype(title_font_path, 33)  # Large font for title
+    duration_font = ImageFont.truetype("DejaVuSans.ttf", 22)  # Smaller font for duration
 
     # Truncate the title if it exceeds 22 characters
     max_title_length = 22

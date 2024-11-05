@@ -189,7 +189,7 @@ async def create_thumbnail(title):
     
     # Define font with a larger size and bold style if available
     title_font_path = "DejaVuSans-Bold.ttf"  # Replace with your bold font path
-    title_font = ImageFont.truetype(title_font_path, 48)  # Increased font size for visibility
+    title_font = ImageFont.truetype(title_font_path, 100)  # Increased font size for visibility
 
     # Draw text on the image
     draw = ImageDraw.Draw(template)

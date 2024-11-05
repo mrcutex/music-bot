@@ -53,7 +53,7 @@ _boot_ = time.time()
 PREFIX = ["/", "#", "!", "."]
 app.set_parse_mode(enums.ParseMode.MARKDOWN)
 bot_start_time = time.time()
-MAX_TITLE_LENGTH = 15
+MAX_TITLE_LENGTH = 20
 CLINK = "https://t.me/mrcutex"
 
 # Helper functions
@@ -182,25 +182,29 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
 from PIL import Image, ImageDraw, ImageFont
 import time
 
-
 async def create_thumbnail(title):
     # Open the template image
     template_path = 'banner.png'  # Replace with your template image path
     template = Image.open(template_path).convert("RGBA")
     
-    # Define font and size for the title
-    title_font = ImageFont.truetype("DejaVuSans.ttf", 36)  # Adjust size as needed
+    # Define font with a larger size and bold style if available
+    title_font_path = "DejaVuSans-Bold.ttf"  # Replace with your bold font path
+    title_font = ImageFont.truetype(title_font_path, 48)  # Increased font size for visibility
 
     # Draw text on the image
     draw = ImageDraw.Draw(template)
 
-    # Calculate position for bottom-center alignment using textbbox
+    # Calculate position for bottom-center alignment with more margin
     text_bbox = draw.textbbox((0, 0), title, font=title_font)
     text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
-    title_position = ((template.width - text_width) // 2, template.height - text_height - 30)  # Adjust bottom margin
+    bottom_margin = 50  # Extra space from the bottom
+    title_position = ((template.width - text_width) // 2, template.height - text_height - bottom_margin)
 
-    # Add the song title to the image
-    draw.text(title_position, title, font=title_font, fill="white")
+    # Add the song title to the image with a bold effect
+    # Draw the text multiple times with slight offsets for a bolder look (pseudo-bold effect)
+    offsets = [(0, 0), (1, 0), (0, 1), (1, 1)]  # Slight offsets for bold effect
+    for offset in offsets:
+        draw.text((title_position[0] + offset[0], title_position[1] + offset[1]), title, font=title_font, fill="white")
 
     # Save the updated thumbnail
     output_path = 'output_thumbnail.png'
@@ -225,10 +229,11 @@ async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
         # Use the generated thumbnail
         media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
         await real_pytgcalls.play(chat_id, media_stream)
-        
+        truncated_title = title if len(title) <= MAX_TITLE_LENGTH else title[:MAX_TITLE_LENGTH] + '...'
+       
         reply_message = (
             f"**[ ➲ Sᴛʀᴇᴀᴍɪɴɢ Sᴛᴀʀᴛᴇᴅ |](https://t.me/mrcutex)**\n\n"
-            f"➤ **Tɪᴛʟᴇ :** [{title}]({link})\n"
+            f"➤ **Tɪᴛʟᴇ :** [{truncated_title}]({link})\n"
             f"➤ **Dᴜʀᴀᴛɪᴏɴ:** {duration_str}\n"
             f"➤ **Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ:** {requester_name}"
         )

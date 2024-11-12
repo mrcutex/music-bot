@@ -180,6 +180,46 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
     logger.info(f"Added to queue: {title} (Duration: {duration}) in chat {chat_id}")
 
 
+
+# /ping command handler
+@app.on_message(filters.command("ping", PREFIX))
+async def ping_command(client, message):
+    # Bot ping calculation
+    start_time = time.time()
+    sent_message = await message.reply_text("Pinging...")
+    bot_ping = round((time.time() - start_time) * 1000)  # Bot ping in ms
+
+    # Server ping calculation
+    try:
+        # Replace "8.8.8.8" with another IP if needed
+        output = subprocess.check_output(["ping", "-c", "1", "8.8.8.8"])
+        server_ping = int(output.split(b"time=")[1].split(b" ")[0])
+    except Exception as e:
+        server_ping = None  # If there's an error, set as None
+
+    # Overall Ping calculation (average if server_ping is available)
+    if server_ping is not None:
+        overall_ping = (bot_ping + server_ping) / 2
+        ping_message = (
+            f"🤖 Bot Ping: `{bot_ping} ms`\n"
+            f"🌐 Server Ping: `{server_ping} ms`\n"
+            f"📊 Overall Ping: `{overall_ping} ms`"
+        )
+    else:
+        ping_message = (
+            f"🤖 Bot Ping: `{bot_ping} ms`\n"
+            f"🌐 Server Ping: `Unavailable`\n"
+            f"📊 Overall Ping: `{bot_ping} ms`"
+        )
+
+    # Update message with ping information
+    await sent_message.edit_text(ping_message)
+
+
+
+
+
+
 async def create_thumbnail(title, duration):
     # Open the template image
     template_path = 'banner.png'  # Replace with your template image path

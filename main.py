@@ -432,7 +432,7 @@ async def vplay(client, message):
 
         else:
             logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
-            await real_pytgcalls.play(chat_id, MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE))
+            await real_pytgcalls.play(chat_id, MediaStream(songlink))
             
             # Only download and send the thumbnail if it exists
             thumbnail_file = await fetch_thumbnail_with_retries(thumbnail_url) if thumbnail_url else None

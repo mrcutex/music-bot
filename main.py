@@ -380,7 +380,7 @@ async def play(client, message):
 
 
 @app.on_message(filters.command("vplay", PREFIX))
-async def play(client, message):
+async def vplay(client, message):
     global stream_running
     if len(message.command) < 2:
         await message.reply("Lᴏʟ🥲! Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴍᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.")

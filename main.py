@@ -614,7 +614,7 @@ async def loop(client, message):
         await message.reply("Please provide a valid number of times to loop the current song.")
 
 
-@app.on_message(filters.group & filters.voice_chat_ended)
+@app.on_message(filters.group & filters.video_chat_ended)
 async def handle_voice_chat_closed(client, message):
     chat_id = message.chat.id
 

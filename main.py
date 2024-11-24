@@ -620,10 +620,10 @@ async def handle_voice_chat_closed(client, message):
 
     if chat_id in stream_running:
         try:
-            # Leave voice chat and stop stream
+            # Leave the voice chat and stop the stream
             await real_pytgcalls.leave_call(chat_id)
 
-            # Clear queue and stream info
+            # Clear the queue and stream info
             stream_running.pop(chat_id, None)
             if chat_id in queue:
                 queue[chat_id] = []
@@ -640,24 +640,27 @@ async def restart_group(client, message):
     chat_id = message.chat.id
 
     try:
-        # Leave voice chat if running
+        # Always stop the stream and clear the queue
         if chat_id in stream_running:
-            await real_pytgcalls.leave_call(chat_id)
+            # Stop the stream and leave the group call if any
+            await real_pytgcalls.leave_group_call(chat_id)
             stream_running.pop(chat_id, None)
 
-        # Clear queue
         if chat_id in queue:
-            queue[chat_id] = []
+            queue[chat_id] = []  # Clear the queue for this group
 
-        # Send feedback to the group
+        # Inform the group that the bot is restarting
         await message.reply("🔄 Restarting bot for this group...")
 
-        # Reinitialize bot state for this group (custom logic if needed)
-        await client.restart()  # Optional: Restart bot's full session
+        # Restart the bot
+        await client.restart()
+
+        # Send a confirmation message after the bot has restarted
+        await message.reply("✅ The bot has been successfully restarted for this group!")
+
     except Exception as e:
         logger.error(f"Error during restart: {e}")
         await message.reply(f"⚠️ Error occurred while restarting: {e}")
-
 
 async def main():
     await app.start()

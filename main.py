@@ -157,6 +157,7 @@ async def poll_stream_status(chat_id, message):
         stream_info = stream_running.get(chat_id)
         if not stream_info:
             break
+
         elapsed_time = current_time - stream_info["start_time"]
         if elapsed_time > stream_info["duration"]:
             if chat_id in looping and looping[chat_id] > 0:
@@ -166,7 +167,9 @@ async def poll_stream_status(chat_id, message):
                 next_track = queues[chat_id].pop(0)
                 await play_media(chat_id, next_track, message)
             else:
+                # End stream if no more loops or queue
                 stream_running.pop(chat_id, None)
+                looping.pop(chat_id, None)  # Clear looping status
                 await real_pytgcalls.leave_call(chat_id)
                 await message.reply("Stream has ended.")
                 break
@@ -599,13 +602,61 @@ async def loop(client, message):
     if len(message.command) == 2 and message.command[1].isdigit():
         loop_count = int(message.command[1])
         if chat_id in stream_running:
-            looping[chat_id] = loop_count
-            await message.reply(f"Looping current song {loop_count} times.")
+            if loop_count > 0:
+                looping[chat_id] = loop_count
+                await message.reply(f"Looping current song {loop_count} times.")
+            else:
+                looping.pop(chat_id, None)  # Remove loop settings if set to 0
+                await message.reply("Looping disabled.")
         else:
             await message.reply("No active stream to loop.")
     else:
-        await message.reply("Please provide the number of times to loop the current song.")
+        await message.reply("Please provide a valid number of times to loop the current song.")
 
+
+@app.on_message(filters.group & filters.voice_chat_ended)
+async def handle_voice_chat_closed(client, message):
+    chat_id = message.chat.id
+
+    if chat_id in stream_running:
+        try:
+            # Leave voice chat and stop stream
+            await real_pytgcalls.leave_call(chat_id)
+
+            # Clear queue and stream info
+            stream_running.pop(chat_id, None)
+            if chat_id in queue:
+                queue[chat_id] = []
+
+            await message.reply("🔴 Voice chat ended. Stream stopped and queue cleared.")
+        except Exception as e:
+            logger.error(f"Error while handling voice chat closure: {e}")
+            await message.reply("⚠️ Error occurred while stopping the stream.")
+    else:
+        await message.reply("No active stream found to stop.")
+
+@app.on_message(filters.command("restart", PREFIX) & filters.group)
+async def restart_group(client, message):
+    chat_id = message.chat.id
+
+    try:
+        # Leave voice chat if running
+        if chat_id in stream_running:
+            await real_pytgcalls.leave_call(chat_id)
+            stream_running.pop(chat_id, None)
+
+        # Clear queue
+        if chat_id in queue:
+            queue[chat_id] = []
+
+        # Send feedback to the group
+        await message.reply("🔄 Restarting bot for this group...")
+
+        # Reinitialize bot state for this group (custom logic if needed)
+        await client.restart()  # Optional: Restart bot's full session
+    except Exception as e:
+        logger.error(f"Error during restart: {e}")
+        await message.reply(f"⚠️ Error occurred while restarting: {e}")
 
 
 async def main():

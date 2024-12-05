@@ -38,7 +38,7 @@ session_string = os.getenv("REAL_SESSION_STRING")
 
 # Initialize Pyrogram client and PyTgCalls
 app = Client("musicbot", api_id=api_id, api_hash=api_hash, session_string=session_string)
-real_pytgcalls = PyTgCalls(app)
+my_pytgcalls = PyTgCalls(app)
 
 
 # Logging setup
@@ -664,7 +664,7 @@ async def restart_group(client, message):
 
 async def main():
     await app.start()
-    await real_pytgcalls.start()
+    await my_pytgcalls.start()
     print("Real app and PyTgCalls started")
    # asyncio.create_task(send_auto_messages())
     

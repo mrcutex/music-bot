@@ -60,7 +60,7 @@ CLINK = "https://t.me/mrcutex"
 # Helper functions
 async def search_yt(query):
     try:
-        search = VideosSearch(query, limit=1)
+        search = VideosSearch(query, limit=1, proxies=None)
         result = search.result()
         if 'result' in result and result['result']:
             video = result['result'][0]

@@ -5,7 +5,7 @@ flask
 pyrogram
 yt-dlp
 ffmpeg-python
-youtube-search-python
+git+https://github.com/alexmercerind/youtube-search-python
 Pillow
 requests
 aiohttp

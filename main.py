@@ -61,35 +61,13 @@ CLINK = "https://t.me/mrcutex"
 # Helper functions
 async def search_yt(query):
     try:
-        # yt-dlp options
-        ydl_opts = {
-            'quiet': True,
-            'extract_flat': True,  # Extract metadata only, no download
-        }
-
-        # Search query using yt-dlp
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            result = ydl.extract_info(f"ytsearch:{query}", download=False)
-
-        # Check if result exists
-        if 'entries' in result and result['entries']:
-            video = result['entries'][0]
+        search = VideosSearch(query, limit=1)
+        result = search.result()
+        if 'result' in result and result['result']:
+            video = result['result'][0]
             title = video['title']
             duration = video['duration']
             video_id = video['id']
-
-            # Ensure duration is a string before passing to convert_duration
-            if isinstance(duration, float):
-                duration = str(int(duration))  # Convert float duration to int and then to string
-            elif isinstance(duration, int):
-                duration = str(duration)  # If it's already an integer, convert to string
-
-            # Use convert_duration function to convert duration string to seconds (if needed)
-            try:
-                duration_seconds = convert_duration(duration)
-            except Exception as e:
-                duration_seconds = None  # If conversion fails, set duration_seconds as None
-                logger.error(f"Error converting duration: {e}")
 
             # Thumbnail URLs in preferred order
             thumbnail_urls = [
@@ -99,7 +77,7 @@ async def search_yt(query):
             ]
 
             link = f"https://www.youtube.com/watch?v={video_id}"
-            return title, duration_seconds, link, thumbnail_urls
+            return title, duration, link, thumbnail_urls
         else:
             return None, None, None, []  # Return an empty list if no result is found
     except Exception as e:

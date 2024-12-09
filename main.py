@@ -14,6 +14,7 @@ import subprocess
 import requests
 import random
 import aiohttp
+import yt_dlp
 from PIL import Image, ImageDraw, ImageFont
 from flask import Flask
 import threading
@@ -60,10 +61,19 @@ CLINK = "https://t.me/mrcutex"
 # Helper functions
 async def search_yt(query):
     try:
-        search = VideosSearch(query, limit=1)
-        result = search.result()
-        if 'result' in result and result['result']:
-            video = result['result'][0]
+        # yt-dlp options
+        ydl_opts = {
+            'quiet': True,
+            'extract_flat': True,  # Extract metadata only, no download
+        }
+
+        # Search query using yt-dlp
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(f"ytsearch:{query}", download=False)
+
+        # Check if result exists
+        if 'entries' in result and result['entries']:
+            video = result['entries'][0]
             title = video['title']
             duration = video['duration']
             video_id = video['id']

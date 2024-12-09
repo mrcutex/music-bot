@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
 api_id = int(os.getenv("REAL_API_ID"))
 api_hash = os.getenv("REAL_API_HASH")
-session_string = os.getenv("SESSION_STRING")
+session_string = os.getenv("REAL_SESSION_STRING")
 
 # Initialize Pyrogram client and PyTgCalls
 app = Client("musicbot", api_id=api_id, api_hash=api_hash, session_string=session_string)

@@ -95,6 +95,7 @@ async def ytdl(format, link):
             "-g",
             "-f", f"{format}",
             f"{link}",
+            "--no-proxy",  
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

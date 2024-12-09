@@ -161,29 +161,46 @@ def convert_duration(duration_str):
 
 
 async def poll_stream_status(chat_id, message):
+    
     while chat_id in stream_running:
-        await asyncio.sleep(5)
-        current_time = time.time()
-        stream_info = stream_running.get(chat_id)
-        if not stream_info:
-            break
+        try:
+            # Delay between checks
+            await asyncio.sleep(5)
 
-        elapsed_time = current_time - stream_info["start_time"]
-        if elapsed_time > stream_info["duration"]:
-            if chat_id in looping and looping[chat_id] > 0:
-                looping[chat_id] -= 1
-                await play_media(chat_id, stream_info, message, from_loop=True)
-            elif chat_id in queues and queues[chat_id]:
-                next_track = queues[chat_id].pop(0)
-                await play_media(chat_id, next_track, message)
-            else:
-                # End stream if no more loops or queue
-                stream_running.pop(chat_id, None)
-                looping.pop(chat_id, None)  # Clear looping status
-                await real_pytgcalls.leave_call(chat_id)
-                await message.reply("Stream has ended.")
+            # Current stream info
+            stream_info = stream_running.get(chat_id)
+            if not stream_info:
+                logger.warning(f"No active stream info for chat {chat_id}. Exiting poll.")
                 break
 
+            elapsed_time = time.time() - stream_info["start_time"]
+            remaining_time = stream_info["duration"] - elapsed_time
+
+            if remaining_time <= 0:
+                logger.info(f"Stream ended for chat {chat_id}. Checking next steps.")
+                
+                if chat_id in looping and looping[chat_id] > 0:
+                    looping[chat_id] -= 1
+                    logger.info(f"Looping track for chat {chat_id}. Remaining loops: {looping[chat_id]}")
+                    await play_media(chat_id, stream_info, message, from_loop=True)
+                elif chat_id in queues and queues[chat_id]:
+                    next_track = queues[chat_id].pop(0)
+                    logger.info(f"Playing next track in queue for chat {chat_id}. Queue length: {len(queues[chat_id])}")
+                    await play_media(chat_id, next_track, message)
+                else:
+                    # End stream if no more loops or queue
+                    logger.info(f"No more tracks to play for chat {chat_id}. Ending stream.")
+                    stream_running.pop(chat_id, None)
+                    looping.pop(chat_id, None)  # Clear looping status
+                    await real_pytgcalls.leave_call(chat_id)
+                    await message.reply("Stream has ended.")
+                    break
+            else:
+                logger.debug(f"Stream ongoing for chat {chat_id}. Remaining time: {remaining_time:.2f}s")
+
+        except Exception as e:
+            logger.error(f"Error in poll_stream_status for chat {chat_id}: {e}")
+            break
 #Imports and setup remain unchanged
 
 async def add_to_queue(chat_id, title, duration, link, media_type):

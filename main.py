@@ -201,6 +201,17 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
 
 
 
+
+# Message handler to check for links and delete the message
+@app.on_message(filters.text & filters.group)
+async def delete_link_message(client, message):
+    # Check if the message contains a link
+    if any(link in message.text.lower() for link in ["http://", "https://", "www."]):
+        await message.delete()  # Delete the message
+        print(f"Deleted a message with a link in chat {message.chat.id}")
+
+
+
 # /ping command handler
 @app.on_message(filters.command("ping", PREFIX))
 async def ping_command(client, message):

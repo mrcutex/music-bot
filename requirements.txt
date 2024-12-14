@@ -9,3 +9,4 @@ Pillow
 requests
 aiohttp
 libs/youtube_search_python-1.6.6.tar.gz
+google-api-python-client

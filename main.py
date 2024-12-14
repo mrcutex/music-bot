@@ -58,50 +58,47 @@ bot_start_time = time.time()
 MAX_TITLE_LENGTH = 20
 MAX_TITLE_LENGTHH = 30
 CLINK = "https://t.me/mrcutex"
-# Replace this with your YouTube Data API key
-YOUTUBE_API_KEY = os.getenv("AIzaSyBqZbktQi-7uiiCdNErOvCFUerWK1iopCk")
+
 
 async def search_yt(query):
-    """Search YouTube using YouTube Data API."""
     try:
-        youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
-        # First request to search for the video
-        request = youtube.search().list(
-            part="snippet",
-            q=query,
-            type="video",
-            maxResults=1
-        )
-        response = request.execute()
+        # yt-dlp options
+        ydl_opts = {
+            'quiet': True,
+            'extract_flat': True,  # Extract metadata only, no download
+        }
 
-        if "items" in response and len(response["items"]) > 0:
-            video = response["items"][0]
-            video_id = video["id"]["videoId"]
-            title = video["snippet"]["title"]
+        # Perform YouTube search using yt-dlp
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(f"ytsearch:{query}", download=False)
 
-            # Request to fetch video details (including duration)
-            video_details_request = youtube.videos().list(
-                part="contentDetails",
-                id=video_id
-            )
-            video_details_response = video_details_request.execute()
-            duration = "Unknown"
-            if "items" in video_details_response and len(video_details_response["items"]) > 0:
-                duration = video_details_response["items"][0]["contentDetails"]["duration"]
+        # Check if valid results are present
+        if result and 'entries' in result and result['entries']:
+            video = result['entries'][0]  # First video in the search results
+            title = video.get('title', 'Unknown Title')  # Fallback if title is missing
+            duration = video.get('duration', 0)  # Duration may not always exist
+            video_id = video.get('id')
 
-            link = f"https://www.youtube.com/watch?v={video_id}"
-
-            # Thumbnail URLs
-            thumbnail_urls = [
-                video["snippet"]["thumbnails"]["high"]["url"],
-                video["snippet"]["thumbnails"]["medium"]["url"],
-                video["snippet"]["thumbnails"]["default"]["url"]
-            ]
-            return title, duration, link, thumbnail_urls
+            # Ensure video ID exists for thumbnails and link
+            if video_id:
+                thumbnail_urls = [
+                    f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                    f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg",
+                    f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
+                ]
+                link = f"https://www.youtube.com/watch?v={video_id}"
+                return title, duration, link, thumbnail_urls
+            else:
+                logger.warning("No video ID found for the query.")
+                return None, None, None, []
         else:
-            return None, None, None, []  # Return empty if no results found
+            logger.info("No results found for the query.")
+            return None, None, None, []
+    except yt_dlp.utils.DownloadError as e:
+        logger.error(f"yt-dlp DownloadError: {e}")
+        return None, None, None, []
     except Exception as e:
-        logger.error(f"search_yt error: {e}")
+        logger.error(f"Unexpected error in search_yt: {e}")
         return None, None, None, []
 
 

@@ -61,25 +61,33 @@ CLINK = "https://t.me/mrcutex"
 # Helper functions
 async def search_yt(query):
     try:
-        search = VideosSearch(query, limit=1)
-        result = search.result()
-        if 'result' in result and result['result']:
-            video = result['result'][0]
-            title = video['title']
-            duration = video['duration']
-            video_id = video['id']
+        # Use yt-dlp to search YouTube
+        proc = await asyncio.create_subprocess_exec(
+            "yt-dlp",
+            f"ytsearch:{query}",  # yt-dlp search query
+            "--print", "id title duration thumbnail",  # Fetch video ID, title, duration, and thumbnail
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
 
-            # Thumbnail URLs in preferred order
-            thumbnail_urls = [
-                f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-                f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg",
-                f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
-            ]
-
+        if stdout:
+            # Parse the first result
+            result = stdout.decode().split("\n")[0].strip().split()
+            if len(result) < 4:
+                return None, None, None, []
+            
+            video_id, title, duration, thumbnail_url = result
+            title = title.strip('"')  # Remove extra quotes from title if any
+            
+            # Generate video link
             link = f"https://www.youtube.com/watch?v={video_id}"
-            return title, duration, link, thumbnail_urls
+            
+            return title, duration, link, [thumbnail_url]  # Return data
         else:
-            return None, None, None, []  # Return an empty list if no result is found
+            error_message = stderr.decode()
+            logger.error(f"yt-dlp stderr: {error_message}")
+            return None, None, None, []
     except Exception as e:
         logger.error(f"search_yt error: {e}")
         return None, None, None, []

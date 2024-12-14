@@ -18,6 +18,7 @@ import yt_dlp
 from PIL import Image, ImageDraw, ImageFont
 from flask import Flask
 import threading
+from googleapiclient.discovery import build
 
 app = Flask(__name__)
 
@@ -57,37 +58,48 @@ bot_start_time = time.time()
 MAX_TITLE_LENGTH = 20
 MAX_TITLE_LENGTHH = 30
 CLINK = "https://t.me/mrcutex"
+# Replace this with your YouTube Data API key
+YOUTUBE_API_KEY = os.getenv("AIzaSyBqZbktQi-7uiiCdNErOvCFUerWK1iopCk")
 
-# Helper functions
 async def search_yt(query):
+    """Search YouTube using YouTube Data API."""
     try:
-        # Use yt-dlp to search YouTube
-        proc = await asyncio.create_subprocess_exec(
-            "yt-dlp",
-            f"ytsearch:{query}",  # yt-dlp search query
-            "--print", "id title duration thumbnail",  # Fetch video ID, title, duration, and thumbnail
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+        # First request to search for the video
+        request = youtube.search().list(
+            part="snippet",
+            q=query,
+            type="video",
+            maxResults=1
         )
-        stdout, stderr = await proc.communicate()
+        response = request.execute()
 
-        if stdout:
-            # Parse the first result
-            result = stdout.decode().split("\n")[0].strip().split()
-            if len(result) < 4:
-                return None, None, None, []
-            
-            video_id, title, duration, thumbnail_url = result
-            title = title.strip('"')  # Remove extra quotes from title if any
-            
-            # Generate video link
+        if "items" in response and len(response["items"]) > 0:
+            video = response["items"][0]
+            video_id = video["id"]["videoId"]
+            title = video["snippet"]["title"]
+
+            # Request to fetch video details (including duration)
+            video_details_request = youtube.videos().list(
+                part="contentDetails",
+                id=video_id
+            )
+            video_details_response = video_details_request.execute()
+            duration = "Unknown"
+            if "items" in video_details_response and len(video_details_response["items"]) > 0:
+                duration = video_details_response["items"][0]["contentDetails"]["duration"]
+
             link = f"https://www.youtube.com/watch?v={video_id}"
-            
-            return title, duration, link, [thumbnail_url]  # Return data
+
+            # Thumbnail URLs
+            thumbnail_urls = [
+                video["snippet"]["thumbnails"]["high"]["url"],
+                video["snippet"]["thumbnails"]["medium"]["url"],
+                video["snippet"]["thumbnails"]["default"]["url"]
+            ]
+            return title, duration, link, thumbnail_urls
         else:
-            error_message = stderr.decode()
-            logger.error(f"yt-dlp stderr: {error_message}")
-            return None, None, None, []
+            return None, None, None, []  # Return empty if no results found
     except Exception as e:
         logger.error(f"search_yt error: {e}")
         return None, None, None, []

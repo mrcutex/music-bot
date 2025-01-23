@@ -98,11 +98,6 @@ def convert_duration(duration_str):
     else:
         return int(parts[0])
 
-async def add_to_queue(chat_id, title, duration, link, media_type):
-    if chat_id not in queues:
-        queues[chat_id] = []
-    queues[chat_id].append({"title": title, "duration": duration, "link": link, "type": media_type})
-    logger.info(f"Added to queue: {title} (Duration: {duration}) in chat {chat_id}")
 
 async def poll_stream_status(chat_id, message):
     while chat_id in stream_running:
@@ -125,176 +120,130 @@ async def poll_stream_status(chat_id, message):
                 await message.reply("Stream has ended.")
                 break
 
-async def play_media(chat_id, track, message, from_loop=False, seek_time=0):
-    try:
-        title, duration_str, link, media_type = track["title"], track["duration"], track["link"], track["type"]
-        duration = convert_duration(duration_str)
-        resp, songlink = await ytdl("bestaudio" if media_type == 'audio' else "best", link)
-        if resp != 1:
-            await message.reply("Error playing the next track in the queue.")
-            return
-        media_stream = MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE if media_type == 'audio' else None)
-        await real_pytgcalls.play(chat_id, media_stream)
-        user = message.from_user.first_name
-        reply_message = (
-            f"**Playing:** [{title}]({link})\n"
-            f"**Duration:** {duration_str}\n"
-            f"**Played By:** {user}"
-        )
-        if not from_loop:
-            await message.reply(reply_message, disable_web_page_preview=True)
-        stream_running[chat_id] = {
-            "start_time": time.time() - seek_time,
-            "duration": duration,
-            "title": title,
-            "duration_str": duration_str,
-            "link": link,
-            "type": media_type
-        }
-        logger.info(f"Started playing: {title} (Duration: {duration_str}) in chat {chat_id}")
-    except Exception as e:
-        logger.error(f"Error playing media: {e}")
-        await message.reply(f"Error playing media: {e}")
 
-@real_app.on_message(filters.command("play", PREFIX))
-async def play(client, message):
-    global stream_running
+# Queue Management and Stream Playing Logic
+@real_app.on_message(filters.command(["play", "vplay"], PREFIX))
+async def play_media(client, message):
+    chat_id = message.chat.id
+    command = message.command[0]  # "/play" or "/vplay"
+    media_type = "video" if command == "vplay" else "audio"
+
+    # Check if a query is provided
     if len(message.command) < 2:
-        await message.reply("Please provide a song name.")
+        await message.reply("❌ Please provide a song name or link to play.")
         return
 
-    chat_id = message.chat.id
     query = message.text.split(" ", 1)[1]
-    indicator_message = await message.reply("Searching for the song...")
+    indicator_message = await message.reply(f"🔍 Searching for the {media_type}...")
 
     try:
-        await message.delete()
-        await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
+        # Fetch YouTube results
         title, duration, link = await search_yt(query)
         if not link:
-            await indicator_message.edit("Sorry, no results found for this query.")
+            await indicator_message.edit("❌ No results found for the given query.")
             return
 
-        resp, songlink = await ytdl("bestaudio", link)
-        if resp == 0:
-            await indicator_message.edit("Sorry, unable to retrieve audio link.")
-            return
-
+        # Check if a stream is already running
         if chat_id in stream_running:
-            logger.info(f"Active stream found in chat {chat_id}, adding {title} to queue.")
-            await add_to_queue(chat_id, title, duration, link, 'audio')
-            await message.reply(f"**Added to queue:**\n [{title}]({link})\n**Duration: {duration}", disable_web_page_preview=True)
-        else:
-            logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
-            await real_pytgcalls.play(chat_id, MediaStream(songlink, video_flags=MediaStream.Flags.IGNORE))
-            user = message.from_user.first_name
-            reply_message = (
-                f"**Playing:** [{title}]({link})\n"
-                f"**Duration:** {duration}\n"
-                f"**Played By:** {user}"
+            # Add to the queue if already a song is playing
+            await add_to_queue(chat_id, title, duration, link, media_type)
+            await indicator_message.edit(
+                f"**Added to Queue:** [{title}]({link})\n**Duration:** {duration}"
             )
-            await message.reply(reply_message, disable_web_page_preview=True)
-            stream_running[chat_id] = {
-                "start_time": time.time(),
-                "duration": convert_duration(duration),
-                "title": title,
-                "duration_str": duration,
-                "link": link,
-                "type": 'audio'
-            }
-            asyncio.create_task(poll_stream_status(chat_id, message))
-        await indicator_message.delete()
+        else:
+            # If no stream is running, start playing the song
+            await play_or_queue_media(chat_id, title, duration, link, media_type, message)
+            await indicator_message.edit(
+                f"**▶️ Now Playing:** [{title}]({link})\n**Duration:** {duration}\n**Requested By:** {message.from_user.mention}",
+                disable_web_page_preview=True,
+            )
     except Exception as e:
-        logger.error(f"Error in play command: {e}")
-        await indicator_message.edit(f"Sorry, unable to retrieve. Error: {e}")
+        await indicator_message.edit(f"⚠️ Error: {e}")
 
-@real_app.on_message(filters.command("vplay", PREFIX))
-async def vplay(client, message):
-    global stream_running
-    if len(message.command) < 2:
-        await message.reply("Please provide a song name.")
+
+async def play_or_queue_media(chat_id, title, duration, link, media_type, message):
+    """Handles playing or queuing media (audio/video)."""
+    # Fetch the appropriate media link (audio or video)
+    resp, media_link = await ytdl("bestaudio" if media_type == "audio" else "best", link)
+    if resp != 1:
+        await message.reply("❌ Unable to fetch media link.")
         return
 
-    chat_id = message.chat.id
-    query = message.text.split(" ", 1)[1]
-    indicator_message = await message.reply("Searching for the song...")
+    media_stream = MediaStream(
+        media_link,
+        video_flags=MediaStream.Flags.IGNORE if media_type == "audio" else None,
+    )
 
-    try:
-        await message.delete()
-        await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
-        title, duration, link = await search_yt(query)
-        if not link:
-            await indicator_message.edit("Sorry, no results found for this query.")
-            return
+    # Check if there's already an active stream, and if so, add the media to the queue
+    if chat_id in stream_running:
+        # Add to queue if song is already playing
+        await add_to_queue(chat_id, title, duration, link, media_type)
+        return
 
-        resp, songlink = await ytdl("bestvideo", link)
-        if resp == 0:
-            await indicator_message.edit("Sorry, unable to retrieve video link.")
-            return
+    # Play the song if no stream is running
+    await real_pytgcalls.play(chat_id, media_stream)
+    
+    # Store details of the stream
+    stream_running[chat_id] = {
+        "title": title,
+        "duration": duration,
+        "link": link,
+        "type": media_type,
+    }
 
-        if chat_id in stream_running:
-            logger.info(f"Active stream found in chat {chat_id}, adding {title} to queue.")
-            await add_to_queue(chat_id, title, duration, link, 'video')
-            await message.reply(f"**Added to queue:**\n **Title**: [{title}]({link})\n**Duration:** {duration}", disable_web_page_preview=True)
-        else:
-            logger.info(f"No active stream in chat {chat_id}, playing {title} directly.")
-            await real_pytgcalls.play(chat_id, MediaStream(songlink))
-            user = message.from_user.first_name
-            reply_message = (
-                f"**Playing:** [{title}]({link})\n"
-                f"**Duration:** {duration}\n"
-                f"**Played By:** {user}"
-            )
-            await message.reply(reply_message, disable_web_page_preview=True)
-            stream_running[chat_id] = {
-                "start_time": time.time(),
-                "duration": convert_duration(duration),
-                "title": title,
-                "duration_str": duration,
-                "link": link,
-                "type": 'video'
-            }
-            asyncio.create_task(poll_stream_status(chat_id, message))
-        await indicator_message.delete()
-    except Exception as e:
-        logger.error(f"Error in vplay command: {e}")
-        await indicator_message.edit(f"Sorry, unable to retrieve. Error: {e}")
+
+async def add_to_queue(chat_id, title, duration, link, media_type):
+    """Add media to the queue."""
+    if chat_id not in queues:
+        queues[chat_id] = []
+    queues[chat_id].append({
+        "title": title,
+        "duration": duration,
+        "link": link,
+        "type": media_type,
+    })
+
+    # If there's a song in the queue, play it once current song ends
+    if chat_id in stream_running and len(queues[chat_id]) == 1:
+        await play_next_from_queue(chat_id)
+
+
+async def play_next_from_queue(chat_id):
+    """Play the next media from the queue when current song finishes."""
+    if chat_id not in queues or len(queues[chat_id]) == 0:
+        return
+
+    next_song = queues[chat_id].pop(0)
+    title = next_song["title"]
+    duration = next_song["duration"]
+    link = next_song["link"]
+    media_type = next_song["type"]
+
+    await play_or_queue_media(chat_id, title, duration, link, media_type, None)
+
 
 @real_app.on_message(filters.command("skip", PREFIX))
 async def skip(client, message):
     chat_id = message.chat.id
-    if len(message.command) == 2 and message.command[1].isdigit():
-        index = int(message.command[1])
-        if chat_id in queues and len(queues[chat_id]) >= index:
-            logger.info(f"Skipping to track {index} in chat {chat_id}.")
-            for _ in range(index - 1):
-                queues[chat_id].pop(0)
-            next_track = queues[chat_id].pop(0)
-            await play_media(chat_id, next_track, message)
-        else:
-            await message.reply("Invalid track number.")
-    elif chat_id in stream_running:
-        logger.info(f"Skipping current track in chat {chat_id}.")
-        await real_pytgcalls.leave_call(chat_id)
-        if chat_id in queues and queues[chat_id]:
-            next_track = queues[chat_id].pop(0)
-            await play_media(chat_id, next_track, message)
-        else:
-            stream_running.pop(chat_id, None)
-            await message.reply("No more tracks in the queue.")
+    if chat_id in stream_running:
+        # Skip current song and play the next one from the queue
+        await play_next_from_queue(chat_id)
+        await message.reply("⏭️ Skipping current song.")
     else:
-        await message.reply("No active stream to skip.")
+        await message.reply("❌ No song is currently playing.")
+
 
 @real_app.on_message(filters.command("queue", PREFIX))
-async def queue(client, message):
+async def show_queue(client, message):
     chat_id = message.chat.id
+
     if chat_id in queues and queues[chat_id]:
-        queue_message = "Current Queue:\n"
-        for idx, track in enumerate(queues[chat_id]):
-            queue_message += f"{idx + 1}. {track['title']} - {track['duration_str']}\n"
-        await message.reply(queue_message)
+        queue_message = "📋 **Current Queue:**\n"
+        for idx, track in enumerate(queues[chat_id], 1):
+            queue_message += f"{idx}. [{track['title']}]({track['link']}) - {track['duration']}\n"
+        await message.reply(queue_message, disable_web_page_preview=True)
     else:
-        await message.reply("The queue is empty.")
+        await message.reply("📭 **Queue is empty.**")
 
 @real_app.on_message(filters.command("clearqueue", PREFIX))
 async def clearqueue(client, message):
@@ -305,39 +254,6 @@ async def clearqueue(client, message):
     else:
         await message.reply("No active queue to clear.")
 
-@real_app.on_message(filters.command("pause", PREFIX))
-async def pause(client, message):
-    chat_id = message.chat.id
-    if chat_id in stream_running:
-        logger.info(f"Pausing stream in chat {chat_id}.")
-        await real_pytgcalls.pause_stream(chat_id)
-        await message.reply("Stream paused.")
-    else:
-        await message.reply("No active stream to pause.")
-
-@real_app.on_message(filters.command("resume", PREFIX))
-async def resume(client, message):
-    chat_id = message.chat.id
-    if chat_id in stream_running:
-        logger.info(f"Resuming stream in chat {chat_id}.")
-        await real_pytgcalls.resume_stream(chat_id)
-        await message.reply("Stream resumed.")
-    else:
-        await message.reply("No active stream to resume.")
-
-@real_app.on_message(filters.command("stop", PREFIX))
-async def stop(client, message):
-    global stream_running
-    chat_id = message.chat.id
-    if chat_id in stream_running:
-        logger.info(f"Stopping stream in chat {chat_id}.")
-        await real_pytgcalls.leave_call(chat_id)
-        del stream_running[chat_id]
-        await message.reply("Stream stopped.")
-    if chat_id in queues:
-        queues[chat_id] = []
-    else:
-        await message.reply("No active stream to stop.")
 
 @real_app.on_message(filters.command("loop", PREFIX))
 async def loop(client, message):
@@ -352,35 +268,6 @@ async def loop(client, message):
     else:
         await message.reply("Please provide the number of times to loop the current song.")
 
-@real_app.on_message(filters.command("seek", PREFIX))
-async def seek(client, message):
-    chat_id = message.chat.id
-    if len(message.command) == 2:
-        time_str = message.command[1]
-        try:
-            # Convert the seek time into seconds
-            seek_time = int(time_str.replace('sec', '').replace('min', '').strip())
-            if 'min' in time_str:
-                seek_time *= 60
-            
-            if chat_id in stream_running:
-                stream_info = stream_running[chat_id]
-                current_time = time.time()
-                elapsed_time = current_time - stream_info["start_time"]
-                new_elapsed_time = elapsed_time + seek_time
-
-                # Ensure the new playback position does not exceed the total duration
-                if new_elapsed_time < stream_info["duration"]:
-                    stream_info["start_time"] = current_time - new_elapsed_time
-                    logger.info(f"Seeked forward by {seek_time} seconds. New start time: {stream_info['start_time']}")
-                else:
-                    await message.reply("Seek time exceeds song duration.")
-            else:
-                await message.reply("No active stream to seek.")
-        except ValueError:
-            await message.reply("Invalid seek time format. Use '10sec' or '1min'.")
-    else:
-        await message.reply("Please provide the time to seek, e.g., .seek 30sec or .seek 1min.")
 
 
 

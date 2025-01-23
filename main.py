@@ -72,6 +72,7 @@ async def ytdl(format, link):
     try:
         proc = await asyncio.create_subprocess_exec(
             "yt-dlp",
+            "--cookies", "cookies.txt",  
             "-g",
             "-f",
             f"{format}",

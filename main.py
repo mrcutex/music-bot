@@ -145,6 +145,11 @@ async def play_media(client, message):
 
         # Check if a stream is already running
         if chat_id in stream_running:
+            # If the same song is already playing, don't add it to the queue
+            if stream_running[chat_id]["link"] == link:
+                await indicator_message.edit(f"🔊 **Currently playing:** [{title}]({link})")
+                return
+
             # Add to the queue if already a song is playing
             await add_to_queue(chat_id, title, duration, link, media_type)
             await indicator_message.edit(
@@ -159,7 +164,6 @@ async def play_media(client, message):
             )
     except Exception as e:
         await indicator_message.edit(f"⚠️ Error: {e}")
-
 
 async def play_or_queue_media(chat_id, title, duration, link, media_type, message):
     """Handles playing or queuing media (audio/video)."""
@@ -253,7 +257,21 @@ async def clearqueue(client, message):
         await message.reply("Queue cleared successfully.")
     else:
         await message.reply("No active queue to clear.")
-
+        
+        
+@real_app.on_message(filters.command("stop", PREFIX))
+async def stop(client, message):
+    global stream_running
+    chat_id = message.chat.id
+    if chat_id in stream_running:
+        logger.info(f"Stopping stream in chat {chat_id}.")
+        await real_pytgcalls.leave_call(chat_id)
+        del stream_running[chat_id]
+        await message.reply("Stream stopped.")
+    if chat_id in queues:
+        queues[chat_id] = []
+    else:
+        await message.reply("No active stream to stop.")
 
 @real_app.on_message(filters.command("loop", PREFIX))
 async def loop(client, message):

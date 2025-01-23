@@ -10,6 +10,21 @@ from youtubesearchpython import VideosSearch
 from pyrogram.types import Message
 from pyrogram.errors import ChatAdminRequired, FloodWait, UserNotParticipant, UserAdminInvalid
 import json
+from flask import Flask
+import threading
+
+app = Flask(__name__)
+
+@app.route('/health')
+def health():
+    return 'OK', 200
+
+def run_server():
+    app.run(host='0.0.0.0', port=8000)
+
+if __name__ == "__main__":
+    threading.Thread(target=run_server).start()
+  
 
 api_id = int(os.getenv("REAL_API_ID"))
 api_hash = os.getenv("REAL_API_HASH")

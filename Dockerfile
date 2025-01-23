@@ -4,7 +4,7 @@ FROM python:3.10-slim
 # Set the working directory
 WORKDIR /app
 
-# Install system dependencies (including git and ffmpeg)
+# Install system dependencies (git, ffmpeg)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ffmpeg && \
@@ -13,7 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip to the latest version
 RUN pip install --no-cache-dir --upgrade pip
 
-# Install the additional library
+# Install a compatible version of httpx
+RUN pip install --no-cache-dir "httpx<0.28"
+
+# Install the youtube-search-python library
 RUN pip install --no-cache-dir git+https://github.com/alexmercerind/youtube-search-python
 
 # Copy requirements.txt first to cache the dependencies layer

@@ -200,14 +200,20 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
     """Add media to the queue."""
     if chat_id not in queues:
         queues[chat_id] = []
-    queues[chat_id].append({
-        "title": title,
-        "duration": duration,
-        "link": link,
-        "type": media_type,
-    })
 
-    # If there's a song in the queue, play it once current song ends
+    # Add to the queue only if not already in the queue (check for duplication)
+    if not any(item['link'] == link for item in queues[chat_id]):
+        queues[chat_id].append({
+            "title": title,
+            "duration": duration,
+            "link": link,
+            "type": media_type,
+        })
+        logger.info(f"Added to queue: {title}")
+    else:
+        logger.info(f"Skipped adding duplicate song to queue: {title}")
+    
+    # If no stream is running and the queue has one song, play the first song in the queue
     if chat_id in stream_running and len(queues[chat_id]) == 1:
         await play_next_from_queue(chat_id)
 

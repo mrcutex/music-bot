@@ -4,16 +4,21 @@ FROM python:3.10-slim
 # Set the working directory
 WORKDIR /app
 
-# Copy only the necessary files for dependency installation first (to take advantage of Docker's layer caching)
-COPY requirements.txt /app/
+# Upgrade pip to the latest version
+RUN pip install --no-cache-dir --upgrade pip
 
-# Update package list and install dependencies in a single layer to reduce image size
+# Update package list and install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
-# Install dependencies from requirements.txt and the additional library
-RUN pip install --no-cache-dir git+https://github.com/alexmercerind/youtube-search-python && \
-    pip install --no-cache-dir -r requirements.txt
+# Install the additional library
+RUN pip install --no-cache-dir git+https://github.com/alexmercerind/youtube-search-python
+
+# Copy requirements.txt first to cache the dependencies layer
+COPY requirements.txt /app/
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the remaining application files
 COPY . /app

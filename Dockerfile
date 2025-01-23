@@ -4,12 +4,14 @@ FROM python:3.10-slim
 # Set the working directory
 WORKDIR /app
 
+# Install system dependencies (including git and ffmpeg)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
 # Upgrade pip to the latest version
 RUN pip install --no-cache-dir --upgrade pip
-
-# Update package list and install dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
 
 # Install the additional library
 RUN pip install --no-cache-dir git+https://github.com/alexmercerind/youtube-search-python

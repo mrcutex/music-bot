@@ -103,7 +103,7 @@ async def poll_stream_status(chat_id):
                 await play_or_queue_media(chat_id, **stream_info, from_loop=True)
             elif chat_id in queues and queues[chat_id]:
                 next_track = queues[chat_id].pop(0)
-                await play_or_queue_media(chat_id, **next_track, media_type=next_track['media_type'])
+                await play_or_queue_media(chat_id, **next_track)
             else:
                 # End the stream
                 stream_running.pop(chat_id, None)

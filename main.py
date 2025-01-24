@@ -97,7 +97,7 @@ async def poll_stream_status(chat_id):
             break
 
         elapsed_time = current_time - stream_info["start_time"]
-        if elapsed_time > stream_info["duration"]:
+        if elapsed_time > stream_info["duration"]:  # Comparison works correctly now
             if chat_id in looping and looping[chat_id] > 0:
                 looping[chat_id] -= 1
                 await play_or_queue_media(chat_id, **stream_info, from_loop=True)
@@ -145,6 +145,15 @@ async def play_media(client, message):
         await indicator_message.edit(f"⚠️ Error: {e}")
 
 async def play_or_queue_media(chat_id, title, duration, link, media_type, message=None, from_loop=False):
+    # Convert duration to seconds
+    try:
+        duration_seconds = sum(
+            int(x) * 60 ** i
+            for i, x in enumerate(reversed(duration.split(":")))
+        )
+    except ValueError:
+        duration_seconds = 0  # Default if duration is unavailable or invalid
+
     resp, media_link = await ytdl("bestaudio" if media_type == "audio" else "best", link)
     if resp != 1:
         if message:
@@ -156,7 +165,7 @@ async def play_or_queue_media(chat_id, title, duration, link, media_type, messag
     if not from_loop:
         stream_running[chat_id] = {
             "title": title,
-            "duration": duration,
+            "duration": duration_seconds,  # Store as numeric value
             "link": link,
             "type": media_type,
             "start_time": time.time(),
@@ -164,6 +173,7 @@ async def play_or_queue_media(chat_id, title, duration, link, media_type, messag
 
     await real_pytgcalls.play(chat_id, media_stream)
     asyncio.create_task(poll_stream_status(chat_id))
+
 
 async def add_to_queue(chat_id, title, duration, link, media_type):
     if chat_id not in queues:

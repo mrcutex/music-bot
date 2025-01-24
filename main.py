@@ -103,7 +103,7 @@ async def poll_stream_status(chat_id):
                 await play_or_queue_media(chat_id, **stream_info, from_loop=True)
             elif chat_id in queues and queues[chat_id]:
                 next_track = queues[chat_id].pop(0)
-                await play_or_queue_media(chat_id, **next_track)
+                await play_or_queue_media(chat_id, **next_track, media_type=next_track['media_type'])
             else:
                 # End the stream
                 stream_running.pop(chat_id, None)
@@ -144,8 +144,8 @@ async def play_media(client, message):
     except Exception as e:
         await indicator_message.edit(f"⚠️ Error: {e}")
 
-async def play_or_queue_media(chat_id, title, duration, link, media_type, message=None, from_loop=False):
-    # Convert duration to seconds
+async def play_or_queue_media(chat_id, title, duration, link, media_type=None, message=None, from_loop=False):
+    
     try:
         duration_seconds = sum(
             int(x) * 60 ** i
@@ -167,7 +167,7 @@ async def play_or_queue_media(chat_id, title, duration, link, media_type, messag
             "title": title,
             "duration": duration_seconds,  # Store as numeric value
             "link": link,
-            "type": media_type,
+            "media_type": media_type,
             "start_time": time.time(),
         }
 
@@ -184,7 +184,7 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
             "title": title,
             "duration": duration,
             "link": link,
-            "type": media_type,
+            "media_type": media_type,  # Use 'media_type' instead of 'type'
         })
         logger.info(f"Added to queue: {title}")
 

@@ -239,4 +239,13 @@ async def ping(client, message):
     await message.reply(f"🏓 Pong! Latency: {latency:.2f} seconds.")
 
 # Run the bot
-real_app.run()
+async def main():
+    await real_app.start()
+    await real_pytgcalls.start()
+    print("started")
+    await idle()
+    await real_app.stop()
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

@@ -23,7 +23,7 @@ if __name__ == "__main__":
     threading.Thread(target=run_server).start()
 
 api_id = int(os.getenv("REAL_API_ID"))
-api_hash = os.getenv("REAL_API_HASH"))
+api_hash = os.getenv("REAL_API_HASH")
 session_string = os.getenv("REAL_SESSION_STRING")
 
 # Initialize Pyrogram client and PyTgCalls

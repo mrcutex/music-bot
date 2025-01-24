@@ -27,8 +27,8 @@ if __name__ == "__main__":
     threading.Thread(target=run_server).start()
 
 api_id = int(os.getenv("REAL_API_ID"))
-api_hash = os.getenv("REAL_API_HASH")
-session_string = os.getenv("REAL_SESSION_STRING")
+api_hash = os.getenv("REAL_API_HASH"))
+session_string = os.getenv("REAL_SESSION_STRING"))
 
 # Initialize Pyrogram client and PyTgCalls
 real_app = Client("RealAccount", api_id=api_id, api_hash=api_hash, session_string=session_string)
@@ -178,6 +178,7 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
     if chat_id not in queues:
         queues[chat_id] = []
 
+    # Check for duplicates by song link before adding
     if not any(item['link'] == link for item in queues[chat_id]):
         queues[chat_id].append({
             "title": title,

@@ -195,8 +195,9 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
     # Display indicator message when queue is updated
     await real_app.send_message(chat_id, f"🎶 **Added to Queue:** {title}")
 
+
 async def play_next_from_queue(chat_id):
-    """Play the next media from the queue when current song finishes."""
+    """Play the next media from the queue when the current song finishes."""
     if chat_id not in queues or len(queues[chat_id]) == 0:
         await real_app.send_message(chat_id, "🚫 **Queue is empty.**")
         return
@@ -208,7 +209,7 @@ async def play_next_from_queue(chat_id):
     media_type = next_song["type"]
 
     await play_or_queue_media(chat_id, title, duration, link, media_type, None)
-
+    
 
 @real_app.on_message(filters.command("skip", PREFIX))
 async def skip(client, message):

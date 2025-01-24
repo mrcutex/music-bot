@@ -174,7 +174,7 @@ async def play_or_queue_media(chat_id, title, duration, link, media_type, messag
     }
 
 async def add_to_queue(chat_id, title, duration, link, media_type):
-    """Add media to the queue."""
+
     if chat_id not in queues:
         queues[chat_id] = []
 
@@ -186,14 +186,14 @@ async def add_to_queue(chat_id, title, duration, link, media_type):
             "type": media_type,
         })
         logger.info(f"Added to queue: {title}")
-        if len(queues[chat_id]) == 1:
+        # Automatically try to play the next song if the stream isn't running
+        if chat_id not in stream_running or len(queues[chat_id]) > 1:
             await play_next_from_queue(chat_id)
     else:
         logger.info(f"Skipped adding duplicate song to queue: {title}")
     
     # Display indicator message when queue is updated
     await real_app.send_message(chat_id, f"🎶 **Added to Queue:** {title}")
-
 
 async def play_next_from_queue(chat_id):
     """Play the next media from the queue when current song finishes."""

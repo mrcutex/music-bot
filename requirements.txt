@@ -1,6 +1,6 @@
 asyncio
 TgCrypto
-pyrofolk
+Pyrofork
 py-tgcalls
 flask
 pyrogram

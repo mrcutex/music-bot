@@ -223,58 +223,89 @@ async def play_media(client, message):
     except Exception as e:
         await indicator_message.edit(f"⚠️ Error: {e}")
 
-async def play_or_queue_media(chat_id, title, duration, link, media_type=None, message=None, from_loop=False):
-    
-    try:
-        duration_seconds = sum(
-            int(x) * 60 ** i
-            for i, x in enumerate(reversed(duration.split(":")))
-        )
-    except ValueError:
-        duration_seconds = 0  # Default if duration is unavailable or invalid
-
-    resp, media_link = await ytdl("bestaudio" if media_type == "audio" else "best", link)
-    if resp != 1:
-        if message:
-            await message.reply("❌ Unable to fetch media link.")
-        return
-
-    media_stream = MediaStream(media_link, video_flags=MediaStream.Flags.IGNORE if media_type == "audio" else None)
-
-    if not from_loop:
-        stream_running[chat_id] = {
-            "title": title,
-            "duration": duration_seconds,  # Store as numeric value
-            "link": link,
-            "media_type": media_type,
-            "start_time": time.time(),
-        }
-
-    await real_pytgcalls.play(chat_id, media_stream)
-    asyncio.create_task(poll_stream_status(chat_id))
-
 
 async def add_to_queue(chat_id, title, duration, link, media_type):
     if chat_id not in queues:
         queues[chat_id] = []
-
-    if not any(item['link'] == link for item in queues[chat_id]):
-        queues[chat_id].append({
-            "title": title,
-            "duration": duration,
-            "link": link,
-            "media_type": media_type,  # Use 'media_type' instead of 'type'
-        })
-        logger.info(f"Added to queue: {title}")
+    
+    track = {
+        "title": title,
+        "duration": duration,
+        "link": link,
+        "media_type": media_type,
+    }
+    queues[chat_id].append(track)
+    return len(queues[chat_id])  # Returns position (1-based index)
 
 @real_app.on_message(filters.command("skip", PREFIX))
-async def skip(client, message):
+async def enhanced_skip(client, message: Message):
     chat_id = message.chat.id
-    if chat_id in stream_running:
+    args = message.command
+    
+    if not stream_running.get(chat_id) and not queues.get(chat_id):
+        await message.reply("❌ Nothing is playing or in queue.")
+        return
+
+    # Default skip (no index)
+    if len(args) == 1:
+        if chat_id in stream_running:
+            await play_next_from_queue(chat_id)
+            await message.reply("⏭️ Skipped current song.")
+        else:
+            await message.reply("❌ No song is currently playing.")
+        return
+
+    # Handle index-based skip
+    try:
+        requested_index = int(args[1])
+        if requested_index < 1:
+            await message.reply("🚫 Index must be ≥ 1")
+            return
+
+        queue = queues.get(chat_id, [])
+        if requested_index > len(queue) + 1:  # +1 to account for current song
+            await message.reply(f"🚫 Only {len(queue)} songs in queue")
+            return
+
+        # Clear queue up to requested index
+        if requested_index > 1:
+            new_index = requested_index - 2  # Convert to 0-based index
+            queues[chat_id] = queue[new_index:]
+        
+        # Stop current stream and play from queue
+        if chat_id in stream_running:
+            stream_running.pop(chat_id)
+            await real_pytgcalls.leave_call(chat_id)
+        
         await play_next_from_queue(chat_id)
-        await message.reply("⏭️ Skipping current song.")
+        await message.reply(f"⏩ Skipped to position {requested_index}")
+    except ValueError:
+        await message.reply("❌ Invalid index format. Use /skip 2")
+
+async def play_next_from_queue(chat_id):
+    if chat_id in queues and queues[chat_id]:
+        next_track = queues[chat_id].pop(0)
+        await play_or_queue_media(chat_id, **next_track)
     else:
-        await message.reply("❌ No song is currently playing.")
+        stream_running.pop(chat_id, None)
+        await real_pytgcalls.leave_call(chat_id)
+
+@real_app.on_message(filters.command("queue", PREFIX))
+async def detailed_queue(client, message):
+    chat_id = message.chat.id
+    queue = queues.get(chat_id, [])
+
+    if not queue:
+        await message.reply("📭 Queue is empty")
+        return
+
+    msg = "📋 **Current Queue:**\n"
+    for idx, track in enumerate(queue, 1):
+        msg += f"{idx}. [{track['title']}]({track['link']}) - {track['duration']}\n"
+    
+    # Show next 5 songs if available
+    await message.reply(msg[:4000], disable_web_page_preview=True)  # Telegram limit
+
 
 @real_app.on_message(filters.command("stop", PREFIX))
 async def stop(client, message):
@@ -288,17 +319,6 @@ async def stop(client, message):
     else:
         await message.reply("❌ No song is currently playing.")
 
-@real_app.on_message(filters.command("queue", PREFIX))
-async def show_queue(client, message):
-    chat_id = message.chat.id
-
-    if chat_id in queues and queues[chat_id]:
-        queue_message = "📋 **Current Queue:**\n"
-        for idx, track in enumerate(queues[chat_id], 1):
-            queue_message += f"{idx}. [{track['title']}]({track['link']}) - {track['duration']}\n"
-        await message.reply(queue_message, disable_web_page_preview=True)
-    else:
-        await message.reply("📭 **Queue is empty.**")
 
 @real_app.on_message(filters.command(PING_COMMAND, PREFIX))
 async def ping(client, message):

@@ -249,7 +249,7 @@ async def generate_queue_image(queue, chat_title):
         
         # Track Number Badge
         draw.ellipse((100, y_position+40, 180, y_position+120)), 
-                    fill=ACCENT_COLOR)
+                 fill=ACCENT_COLOR)
         draw.text((140, y_position+80), str(idx), 
                  fill=TEXT_COLOR, font=medium_font, anchor="mm")
         

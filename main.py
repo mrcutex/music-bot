@@ -10,11 +10,13 @@ from youtubesearchpython import VideosSearch
 from pyrogram.types import Message
 from pyrogram.errors import ChatAdminRequired, FloodWait, UserNotParticipant, UserAdminInvalid
 import json
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
 from flask import Flask
 import threading
 
 
-# Flask health check
+
 app = Flask(__name__)
 
 @app.route('/health')
@@ -24,11 +26,11 @@ def health():
 def run_server():
     app.run(host='0.0.0.0', port=8000)
 
-# Start Flask server
+
 if __name__ == "__main__":
     threading.Thread(target=run_server).start()
 
-# Configuration
+
 api_id = int(os.getenv("REAL_API_ID"))
 api_hash = os.getenv("REAL_API_HASH")
 session_string = os.getenv("REAL_SESSION_STRING")
@@ -44,12 +46,12 @@ queues = {}
 looping = {}
 bot_start_time = time.time()
 
-PREFIX = ["/", "#", "!", "."]
+PREFIX = ["/", "."]
 PING_COMMAND = ["alive", "ping", "pong", "status"]
 
 real_app.set_parse_mode(enums.ParseMode.MARKDOWN)
 
-# Helper functions
+
 async def search_yt(query):
     try:
         search = VideosSearch(query, limit=1)
@@ -89,9 +91,9 @@ async def ytdl(format, link):
         return 0, str(e)
 
 
-# ... [Keep the existing imports and setup code] ...
 
-# Modify the play_or_queue_media function to always update stream_running
+
+
 async def play_or_queue_media(chat_id, title, duration, link, media_type=None, message=None, from_loop=False):
     try:
         duration_seconds = sum(
@@ -99,9 +101,9 @@ async def play_or_queue_media(chat_id, title, duration, link, media_type=None, m
             for i, x in enumerate(reversed(duration.split(":")))
         )
     except ValueError:
-        duration_seconds = 0  # Handle invalid duration
+        duration_seconds = 0  
 
-    # Determine the media type (audio or video)
+    
     format_type = "bestaudio" if media_type == "audio" else "best"
     resp, media_link = await ytdl(format_type, link)
     
@@ -110,7 +112,7 @@ async def play_or_queue_media(chat_id, title, duration, link, media_type=None, m
             await message.reply("❌ Unable to fetch media link.")
         return
 
-    # Always update stream_running with current track info
+    
     stream_running[chat_id] = {
         "title": title,
         "duration": duration_seconds,
@@ -123,10 +125,10 @@ async def play_or_queue_media(chat_id, title, duration, link, media_type=None, m
     await real_pytgcalls.play(chat_id, media_stream)
     asyncio.create_task(poll_stream_status(chat_id))
 
-# Modify poll_stream_status to handle loop counts
 
 
-# Add the loop command handler
+
+
 @real_app.on_message(filters.command("loop", PREFIX))
 async def loop_command(client, message: Message):
     chat_id = message.chat.id
@@ -136,7 +138,7 @@ async def loop_command(client, message: Message):
 
     args = message.command
     if len(args) < 2:
-        # Default to infinite loop
+        
         looping[chat_id] = -1
         await message.reply("🔂 Loop enabled infinitely.")
         return
@@ -155,12 +157,12 @@ async def loop_command(client, message: Message):
             looping.pop(chat_id, None)
             await message.reply("🔂 Loop disabled.")
         else:
-            looping[chat_id] = loop_count - 1  # Subtract 1 for current play
+            looping[chat_id] = loop_count - 1  
             await message.reply(f"🔂 Loop set to {loop_count} plays.")
     except ValueError:
         await message.reply("❌ Invalid argument. Use a number, 'inf', or 'infinite'.")
         
-# ... [Keep the rest of the existing code, like command handlers and main loop] ...
+
 
 
 
@@ -176,22 +178,54 @@ async def poll_stream_status(chat_id):
         elapsed_time = current_time - stream_info["start_time"]
         if elapsed_time > stream_info["duration"]:
             loop_count = looping.get(chat_id, 0)
-            if loop_count != 0:  # Check for active loop (finite or infinite)
+            if loop_count != 0:  
                 if loop_count > 0:
                     looping[chat_id] -= 1
-                # Play the same track again
+                
                 await play_or_queue_media(chat_id, **stream_info, from_loop=True)
             elif chat_id in queues and queues[chat_id]:
                 next_track = queues[chat_id].pop(0)
                 await play_or_queue_media(chat_id, **next_track)
             else:
-                # End the stream
+                
                 stream_running.pop(chat_id, None)
                 looping.pop(chat_id, None)
                 await real_pytgcalls.leave_call(chat_id)
                 break
 
-# Command Handlers
+
+# Add these new imports at the top
+
+# Add this function for image generation
+async def generate_queue_image(queue, chat_title):
+    # Create image with gradient background
+    img = Image.new('RGB', (800, 200 + len(queue)*60), (30, 30, 40))
+    draw = ImageDraw.Draw(img)
+    
+    # Load fonts
+    try:
+        title_font = ImageFont.truetype("arialbd.ttf", 30)
+        item_font = ImageFont.truetype("arial.ttf", 24)
+    except:
+        title_font = ImageFont.load_default()
+        item_font = ImageFont.load_default()
+
+    # Draw header
+    draw.text((20, 20), f"Queue for {chat_title}", fill=(255, 255, 255), font=title_font)
+    
+    # Draw queue items
+    y = 80
+    for idx, track in enumerate(queue[:10], 1):  # Show first 10 items
+        text = f"{idx}. {textwrap.shorten(track['title'], width=35} - {track['duration']}"
+        draw.text((40, y), text, fill=(200, 200, 220), font=item_font)
+        y += 50
+    
+    # Save temporary image
+    img_path = f"queue_{chat_title}.jpg"
+    img.save(img_path)
+    return img_path
+
+# Modified play_media handler
 @real_app.on_message(filters.command(["play", "vplay"], PREFIX))
 async def play_media(client, message):
     chat_id = message.chat.id
@@ -212,31 +246,24 @@ async def play_media(client, message):
             return
 
         if chat_id in stream_running:
-            await add_to_queue(chat_id, title, duration, link, media_type)
-            await indicator_message.edit(f"**Added to Queue:** [{title}]({link})\n**Duration:** {duration}")
+            position = await add_to_queue(chat_id, title, duration, link, media_type)
+            await indicator_message.edit(
+                f"**Added to Queue (Position {position}):** `{title}`\n"
+                f"**Duration:** {duration}",
+                disable_web_page_preview=True
+            )
         else:
             await play_or_queue_media(chat_id, title, duration, link, media_type, message)
             await indicator_message.edit(
-                f"**▶️ Now Playing:** [{title}]({link})\n**Duration:** {duration}\n**Requested By:** {message.from_user.mention}",
-                disable_web_page_preview=True,
+                f"**▶️ Now Playing:** `{title}`\n"
+                f"**Duration:** {duration}\n"
+                f"**Requested By:** {message.from_user.mention}",
+                disable_web_page_preview=True
             )
     except Exception as e:
         await indicator_message.edit(f"⚠️ Error: {e}")
 
-
-async def add_to_queue(chat_id, title, duration, link, media_type):
-    if chat_id not in queues:
-        queues[chat_id] = []
-    
-    track = {
-        "title": title,
-        "duration": duration,
-        "link": link,
-        "media_type": media_type,
-    }
-    queues[chat_id].append(track)
-    return len(queues[chat_id])  # Returns position (1-based index)
-
+# Modified skip handler
 @real_app.on_message(filters.command("skip", PREFIX))
 async def enhanced_skip(client, message: Message):
     chat_id = message.chat.id
@@ -250,7 +277,11 @@ async def enhanced_skip(client, message: Message):
     if len(args) == 1:
         if chat_id in stream_running:
             await play_next_from_queue(chat_id)
-            await message.reply("⏭️ Skipped current song.")
+            reply_text = "⏭️ Skipped current song."
+            if queues.get(chat_id):
+                next_track = queues[chat_id][0]
+                reply_text += f"\n\n**Now Playing:** `{next_track['title']}`"
+            await message.reply(reply_text)
         else:
             await message.reply("❌ No song is currently playing.")
         return
@@ -258,29 +289,72 @@ async def enhanced_skip(client, message: Message):
     # Handle index-based skip
     try:
         requested_index = int(args[1])
+        queue = queues.get(chat_id, [])
+        
         if requested_index < 1:
             await message.reply("🚫 Index must be ≥ 1")
             return
-
-        queue = queues.get(chat_id, [])
-        if requested_index > len(queue) + 1:  # +1 to account for current song
+            
+        if requested_index > len(queue) + 1:
             await message.reply(f"🚫 Only {len(queue)} songs in queue")
             return
 
-        # Clear queue up to requested index
-        if requested_index > 1:
-            new_index = requested_index - 2  # Convert to 0-based index
-            queues[chat_id] = queue[new_index:]
+        # Calculate actual position in queue
+        actual_position = requested_index - 1  # Convert to 0-based index
         
-        # Stop current stream and play from queue
+        if requested_index > 1:
+            # Keep from requested index onward
+            queues[chat_id] = queue[actual_position:]
+        
+        # Stop current stream
         if chat_id in stream_running:
             stream_running.pop(chat_id)
             await real_pytgcalls.leave_call(chat_id)
         
-        await play_next_from_queue(chat_id)
-        await message.reply(f"⏩ Skipped to position {requested_index}")
+        # Play next from modified queue
+        if queues[chat_id]:
+            await play_next_from_queue(chat_id)
+            new_track = queues[chat_id][0]
+            await message.reply(
+                f"⏩ Skipped to position {requested_index}\n"
+                f"**Now Playing:** `{new_track['title']}`"
+            )
+        else:
+            await message.reply("✅ Queue cleared")
     except ValueError:
         await message.reply("❌ Invalid index format. Use /skip 2")
+
+# Modified queue handler with image
+@real_app.on_message(filters.command("queue", PREFIX))
+async def image_queue(client, message):
+    chat_id = message.chat.id
+    queue = queues.get(chat_id, [])
+    
+    if not queue:
+        await message.reply("📭 Queue is empty")
+        return
+
+    try:
+        chat = await client.get_chat(chat_id)
+        chat_title = chat.title if chat.title else "This Chat"
+        img_path = await generate_queue_image(queue, chat_title)
+        
+        caption = f"**Current Queue for {chat_title}**\n"
+        caption += f"Total {len(queue)} songs in queue"
+        
+        await message.reply_photo(
+            photo=img_path,
+            caption=caption,
+            quote=True
+        )
+        os.remove(img_path)
+    except Exception as e:
+        logger.error(f"Queue image error: {e}")
+        await message.reply("⚠️ Failed to generate queue image, showing text version:")
+        msg = "📋 **Current Queue:**\n"
+        for idx, track in enumerate(queue, 1):
+            msg += f"{idx}. `{track['title']}` - {track['duration']}\n"
+        await message.reply(msg[:4000])
 
 async def play_next_from_queue(chat_id):
     if chat_id in queues and queues[chat_id]:
@@ -290,21 +364,7 @@ async def play_next_from_queue(chat_id):
         stream_running.pop(chat_id, None)
         await real_pytgcalls.leave_call(chat_id)
 
-@real_app.on_message(filters.command("queue", PREFIX))
-async def detailed_queue(client, message):
-    chat_id = message.chat.id
-    queue = queues.get(chat_id, [])
 
-    if not queue:
-        await message.reply("📭 Queue is empty")
-        return
-
-    msg = "📋 **Current Queue:**\n"
-    for idx, track in enumerate(queue, 1):
-        msg += f"{idx}. [{track['title']}]({track['link']}) - {track['duration']}\n"
-    
-    # Show next 5 songs if available
-    await message.reply(msg[:4000], disable_web_page_preview=True)  # Telegram limit
 
 
 @real_app.on_message(filters.command("stop", PREFIX))
@@ -325,7 +385,7 @@ async def ping(client, message):
     latency = time.time() - bot_start_time
     await message.reply(f"🏓 Pong! Latency: {latency:.2f} seconds.")
 
-# Run the bot
+
 async def main():
     await real_app.start()
     await real_pytgcalls.start()

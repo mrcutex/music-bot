@@ -204,11 +204,11 @@ async def generate_queue_image(queue, chat_title):
     ACCENT_COLOR = (0, 230, 118)  # Neon Green
     TEXT_COLOR = (255, 255, 255)
     META_COLOR = (170, 170, 170)
-    
+
     # Create image with modern aspect ratio
     img = Image.new('RGB', (1080, 1920), BG_COLOR)
     draw = ImageDraw.Draw(img)
-    
+
     # Load Modern Fonts (Use Inter Font Family)
     try:
         bold_font = ImageFont.truetype("Inter-Bold.ttf", 62)
@@ -218,7 +218,7 @@ async def generate_queue_image(queue, chat_title):
         # Fallback to Roboto
         try:
             bold_font = ImageFont.truetype("Roboto-Bold.ttf", 62)
-            medium_font = ImageFont.truetype("Roboto-Medium.ttf", 48) 
+            medium_font = ImageFont.truetype("Roboto-Medium.ttf", 48)
             regular_font = ImageFont.truetype("Roboto-Regular.ttf", 42)
         except:
             # Ultimate Fallback
@@ -229,60 +229,61 @@ async def generate_queue_image(queue, chat_title):
     # Header Section with Dynamic Gradient
     header_height = 280
     for i in range(header_height):
-        alpha = int(255 * (i/header_height))
-        draw.rectangle((0, i, 1080, i+1), fill=(18, 18, 18, alpha))
-    
+        alpha = int(255 * (i / header_height))
+        draw.rectangle((0, i, 1080, i + 1), fill=(18, 18, 18, alpha))
+
     # Modern Typography
     draw.text((120, 80), "MUSIC QUEUE", fill=ACCENT_COLOR, font=bold_font)
-    
+
     # macOS-style Window Controls
     draw.ellipse((920, 90, 980, 150), fill=(255, 95, 87))  # Red
-    draw.ellipse((990, 90, 1050, 150), fill=(254, 189, 47)) # Yellow
-    draw.ellipse((1060, 90, 1120, 150), fill=(49, 203, 89)) # Green
-    
+    draw.ellipse((990, 90, 1050, 150), fill=(254, 189, 47))  # Yellow
+    draw.ellipse((1060, 90, 1120, 150), fill=(49, 203, 89))  # Green
+
     # Queue Items with Material Design
     y_position = 320
     for idx, track in enumerate(queue[:8], 1):
         # Card Background
-        draw.rounded_rectangle((60, y_position, 1020, y_position+180), 
-                             radius=18, fill=CARD_COLOR)
-        
+        draw.rounded_rectangle((60, y_position, 1020, y_position + 180),
+                               radius=18, fill=CARD_COLOR)
+
         # Track Number Badge
-        draw.ellipse((100, y_position+40, 180, y_position+120)), 
-                 fill=ACCENT_COLOR)
-        draw.text((140, y_position+80), str(idx), 
-                 fill=TEXT_COLOR, font=medium_font, anchor="mm")
-        
+        draw.ellipse((100, y_position + 40, 180, y_position + 120), 
+                     fill=ACCENT_COLOR)
+        draw.text((140, y_position + 80), str(idx),
+                  fill=TEXT_COLOR, font=medium_font, anchor="mm")
+
         # Track Title with Gradient
         title = textwrap.shorten(track['title'], width=28, placeholder="...")
-        draw.text((220, y_position+50), title, 
-                 fill=TEXT_COLOR, font=medium_font)
-        
+        draw.text((220, y_position + 50), title,
+                  fill=TEXT_COLOR, font=medium_font)
+
         # Metadata Chip
-        draw.rounded_rectangle((220, y_position+110, 470, y_position+160)),
-                             radius=12, fill=BG_COLOR)
-        draw.text((240, y_position+120), f"🕒 {track['duration']} | {track['media_type'].upper()}",
-                 fill=META_COLOR, font=regular_font)
-        
+        draw.rounded_rectangle((220, y_position + 110, 470, y_position + 160),
+                               radius=12, fill=BG_COLOR)
+        draw.text((240, y_position + 120), 
+                  f"🕒 {track['duration']} | {track['media_type'].upper()}",
+                  fill=META_COLOR, font=regular_font)
+
         # Dynamic Progress Bar
-        draw.rounded_rectangle((700, y_position+110, 980, y_position+130)),
-                             radius=8, fill=(50, 50, 50))
-        draw.rounded_rectangle((700, y_position+110, 780, y_position+130)),
-                             radius=8, fill=ACCENT_COLOR)
-        
+        draw.rounded_rectangle((700, y_position + 110, 980, y_position + 130),
+                               radius=8, fill=(50, 50, 50))
+        draw.rounded_rectangle((700, y_position + 110, 780, y_position + 130),
+                               radius=8, fill=ACCENT_COLOR)
+
         # Spotify-style Waveform
         for i in range(12):
             height = random.randint(20, 80)
-            draw.rounded_rectangle((700 + (i*25), y_position+50, 
-                                  720 + (i*25), y_position+50+height),
-                                 radius=4, fill=ACCENT_COLOR)
-        
+            draw.rounded_rectangle((700 + (i * 25), y_position + 50,
+                                    720 + (i * 25), y_position + 50 + height),
+                                   radius=4, fill=ACCENT_COLOR)
+
         y_position += 220
 
     # Floating Player Controls
-    draw.rounded_rectangle((200, 1750, 880, 1850)), radius=35, fill=CARD_COLOR)
-    draw.ellipse((460, 1770, 560, 1870)), fill=ACCENT_COLOR)
-    
+    draw.rounded_rectangle((200, 1750, 880, 1850), radius=35, fill=CARD_COLOR)
+    draw.ellipse((460, 1770, 560, 1870), fill=ACCENT_COLOR)
+
     # Save as High Quality PNG
     img_path = f"queue_{chat_title}.png"
     img.save(img_path, quality=95, optimize=True)

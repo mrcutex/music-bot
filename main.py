@@ -198,68 +198,94 @@ async def poll_stream_status(chat_id):
 
 # Add this function for image generation
 async def generate_queue_image(queue, chat_title):
-    # Create image with macOS-like design
-    img = Image.new('RGB', (800, 300 + len(queue)*70), (255, 255, 255))
+    # Modern Dark Theme Parameters
+    BG_COLOR = (18, 18, 18)
+    CARD_COLOR = (30, 30, 30)
+    ACCENT_COLOR = (0, 230, 118)  # Neon Green
+    TEXT_COLOR = (255, 255, 255)
+    META_COLOR = (170, 170, 170)
+    
+    # Create image with modern aspect ratio
+    img = Image.new('RGB', (1080, 1920), BG_COLOR)
     draw = ImageDraw.Draw(img)
     
-    # Load macOS-style fonts (fallback to default)
+    # Load Modern Fonts (Use Inter Font Family)
     try:
-        title_font = ImageFont.truetype("HelveticaNeue-Bold.ttf", 32)
-        text_font = ImageFont.truetype("HelveticaNeue.ttf", 26)
-        meta_font = ImageFont.truetype("HelveticaNeue-Light.ttf", 22)
+        bold_font = ImageFont.truetype("Inter-Bold.ttf", 62)
+        medium_font = ImageFont.truetype("Inter-Medium.ttf", 48)
+        regular_font = ImageFont.truetype("Inter-Regular.ttf", 42)
     except:
-        # Fallback to Arial if system fonts not available
+        # Fallback to Roboto
         try:
-            title_font = ImageFont.truetype("arialbd.ttf", 32)
-            text_font = ImageFont.truetype("arial.ttf", 26)
-            meta_font = ImageFont.truetype("arial.ttf", 22)
+            bold_font = ImageFont.truetype("Roboto-Bold.ttf", 62)
+            medium_font = ImageFont.truetype("Roboto-Medium.ttf", 48) 
+            regular_font = ImageFont.truetype("Roboto-Regular.ttf", 42)
         except:
-            title_font = ImageFont.load_default()
-            text_font = ImageFont.load_default()
-            meta_font = ImageFont.load_default()
+            # Ultimate Fallback
+            bold_font = ImageFont.load_default()
+            medium_font = ImageFont.load_default()
+            regular_font = ImageFont.load_default()
 
-    # Draw header with gradient
-    for i in range(70):
-        draw.line((0, i, 800, i), fill=(240 + i//3, 240 + i//3, 240 + i//3))
-
-    # macOS-style title with three dots menu
-    draw.text((40, 30), f"🎵  Queue for {chat_title}", fill=(30, 30, 30), font=title_font)
-    draw.ellipse((720, 35, 730, 45), fill=(200, 200, 200))  # •••
-    draw.ellipse((735, 35, 745, 45), fill=(200, 200, 200))
-    draw.ellipse((750, 35, 760, 45), fill=(200, 200, 200))
-
-    # Draw queue items with cards
-    y = 100
-    for idx, track in enumerate(queue[:8], 1):  # Show first 8 items with better spacing
-        # Card background
-        draw.rounded_rectangle((20, y, 780, y+60), radius=10, fill=(245, 245, 245))
-        
-        # Track number
-        draw.ellipse((40, y+15, 70, y+45), fill=(0, 122, 255))
-        draw.text((50, y+15), str(idx), fill=(255, 255, 255), font=text_font, anchor="mm")
-        
-        # Track title with ellipsis
-        truncated_title = textwrap.shorten(track['title'], width=32, placeholder="...")
-        draw.text((90, y+15), truncated_title, fill=(30, 30, 30), font=text_font)
-        
-        # Duration and type
-        draw.text((90, y+35), f"🕒 {track['duration']} • ⚡ {track['media_type'].title()}",
-                 fill=(150, 150, 150), font=meta_font)
-        
-        # Progress bar
-        draw.rounded_rectangle((600, y+25, 760, y+35), radius=5, fill=(225, 225, 225))
-        
-        y += 75
-
-    # Drop shadow effect
-    shadow = Image.new('RGBA', img.size, (0,0,0,0))
-    for i in range(10):
-        shadow.putalpha(Image.new('L', img.size, 15*i))
-        img.paste(shadow, (-i, -i), shadow)
+    # Header Section with Dynamic Gradient
+    header_height = 280
+    for i in range(header_height):
+        alpha = int(255 * (i/header_height))
+        draw.rectangle((0, i, 1080, i+1), fill=(18, 18, 18, alpha))
     
-    # Save temporary image
+    # Modern Typography
+    draw.text((120, 80), "MUSIC QUEUE", fill=ACCENT_COLOR, font=bold_font)
+    
+    # macOS-style Window Controls
+    draw.ellipse((920, 90, 980, 150), fill=(255, 95, 87))  # Red
+    draw.ellipse((990, 90, 1050, 150), fill=(254, 189, 47)) # Yellow
+    draw.ellipse((1060, 90, 1120, 150), fill=(49, 203, 89)) # Green
+    
+    # Queue Items with Material Design
+    y_position = 320
+    for idx, track in enumerate(queue[:8], 1):
+        # Card Background
+        draw.rounded_rectangle((60, y_position, 1020, y_position+180), 
+                             radius=18, fill=CARD_COLOR)
+        
+        # Track Number Badge
+        draw.ellipse((100, y_position+40, 180, y_position+120)), 
+                    fill=ACCENT_COLOR)
+        draw.text((140, y_position+80), str(idx), 
+                 fill=TEXT_COLOR, font=medium_font, anchor="mm")
+        
+        # Track Title with Gradient
+        title = textwrap.shorten(track['title'], width=28, placeholder="...")
+        draw.text((220, y_position+50), title, 
+                 fill=TEXT_COLOR, font=medium_font)
+        
+        # Metadata Chip
+        draw.rounded_rectangle((220, y_position+110, 470, y_position+160)),
+                             radius=12, fill=BG_COLOR)
+        draw.text((240, y_position+120), f"🕒 {track['duration']} | {track['media_type'].upper()}",
+                 fill=META_COLOR, font=regular_font)
+        
+        # Dynamic Progress Bar
+        draw.rounded_rectangle((700, y_position+110, 980, y_position+130)),
+                             radius=8, fill=(50, 50, 50))
+        draw.rounded_rectangle((700, y_position+110, 780, y_position+130)),
+                             radius=8, fill=ACCENT_COLOR)
+        
+        # Spotify-style Waveform
+        for i in range(12):
+            height = random.randint(20, 80)
+            draw.rounded_rectangle((700 + (i*25), y_position+50, 
+                                  720 + (i*25), y_position+50+height),
+                                 radius=4, fill=ACCENT_COLOR)
+        
+        y_position += 220
+
+    # Floating Player Controls
+    draw.rounded_rectangle((200, 1750, 880, 1850)), radius=35, fill=CARD_COLOR)
+    draw.ellipse((460, 1770, 560, 1870)), fill=ACCENT_COLOR)
+    
+    # Save as High Quality PNG
     img_path = f"queue_{chat_title}.png"
-    img.save(img_path, quality=100)
+    img.save(img_path, quality=95, optimize=True)
     return img_path
     
 async def add_to_queue(chat_id, title, duration, link, media_type):

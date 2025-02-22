@@ -216,7 +216,8 @@ async def generate_queue_image(queue, chat_title):
     # Draw queue items
     y = 80
     for idx, track in enumerate(queue[:10], 1):  # Show first 10 items
-        text = f"{idx}. {textwrap.shorten(track['title'], width=35} - {track['duration']}"
+        # Fixed line with proper parenthesis
+        text = f"{idx}. {textwrap.shorten(track['title'], width=35)} - {track['duration']}"
         draw.text((40, y), text, fill=(200, 200, 220), font=item_font)
         y += 50
     
@@ -224,6 +225,7 @@ async def generate_queue_image(queue, chat_title):
     img_path = f"queue_{chat_title}.jpg"
     img.save(img_path)
     return img_path
+
 
 # Modified play_media handler
 @real_app.on_message(filters.command(["play", "vplay"], PREFIX))

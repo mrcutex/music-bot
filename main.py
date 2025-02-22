@@ -225,7 +225,19 @@ async def generate_queue_image(queue, chat_title):
     img_path = f"queue_{chat_title}.jpg"
     img.save(img_path)
     return img_path
-
+    
+async def add_to_queue(chat_id, title, duration, link, media_type):
+    if chat_id not in queues:
+        queues[chat_id] = []
+    
+    track = {
+        "title": title,
+        "duration": duration,
+        "link": link,
+        "media_type": media_type,
+    }
+    queues[chat_id].append(track)
+    return len(queues[chat_id])  
 
 # Modified play_media handler
 @real_app.on_message(filters.command(["play", "vplay"], PREFIX))

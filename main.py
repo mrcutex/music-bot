@@ -88,6 +88,83 @@ async def ytdl(format, link):
         logger.error(f"ytdl error: {e}")
         return 0, str(e)
 
+
+# ... [Keep the existing imports and setup code] ...
+
+# Modify the play_or_queue_media function to always update stream_running
+async def play_or_queue_media(chat_id, title, duration, link, media_type=None, message=None, from_loop=False):
+    try:
+        duration_seconds = sum(
+            int(x) * 60 ** i
+            for i, x in enumerate(reversed(duration.split(":")))
+        )
+    except ValueError:
+        duration_seconds = 0  # Handle invalid duration
+
+    # Determine the media type (audio or video)
+    format_type = "bestaudio" if media_type == "audio" else "best"
+    resp, media_link = await ytdl(format_type, link)
+    
+    if resp != 1:
+        if message:
+            await message.reply("❌ Unable to fetch media link.")
+        return
+
+    # Always update stream_running with current track info
+    stream_running[chat_id] = {
+        "title": title,
+        "duration": duration_seconds,
+        "link": link,
+        "media_type": media_type,
+        "start_time": time.time(),
+    }
+
+    media_stream = MediaStream(media_link, video_flags=MediaStream.Flags.IGNORE if media_type == "audio" else None)
+    await real_pytgcalls.play(chat_id, media_stream)
+    asyncio.create_task(poll_stream_status(chat_id))
+
+# Modify poll_stream_status to handle loop counts
+
+
+# Add the loop command handler
+@real_app.on_message(filters.command("loop", PREFIX))
+async def loop_command(client, message: Message):
+    chat_id = message.chat.id
+    if chat_id not in stream_running:
+        await message.reply("❌ No song is currently playing to loop.")
+        return
+
+    args = message.command
+    if len(args) < 2:
+        # Default to infinite loop
+        looping[chat_id] = -1
+        await message.reply("🔂 Loop enabled infinitely.")
+        return
+
+    arg = args[1].lower()
+    if arg in ("inf", "infinite"):
+        looping[chat_id] = -1
+        await message.reply("🔂 Loop enabled infinitely.")
+        return
+
+    try:
+        loop_count = int(arg)
+        if loop_count < 0:
+            await message.reply("❌ Loop count cannot be negative.")
+        elif loop_count == 0:
+            looping.pop(chat_id, None)
+            await message.reply("🔂 Loop disabled.")
+        else:
+            looping[chat_id] = loop_count - 1  # Subtract 1 for current play
+            await message.reply(f"🔂 Loop set to {loop_count} plays.")
+    except ValueError:
+        await message.reply("❌ Invalid argument. Use a number, 'inf', or 'infinite'.")
+        
+# ... [Keep the rest of the existing code, like command handlers and main loop] ...
+
+
+
+
 async def poll_stream_status(chat_id):
     while chat_id in stream_running:
         await asyncio.sleep(5)
@@ -97,9 +174,12 @@ async def poll_stream_status(chat_id):
             break
 
         elapsed_time = current_time - stream_info["start_time"]
-        if elapsed_time > stream_info["duration"]:  # Comparison works correctly now
-            if chat_id in looping and looping[chat_id] > 0:
-                looping[chat_id] -= 1
+        if elapsed_time > stream_info["duration"]:
+            loop_count = looping.get(chat_id, 0)
+            if loop_count != 0:  # Check for active loop (finite or infinite)
+                if loop_count > 0:
+                    looping[chat_id] -= 1
+                # Play the same track again
                 await play_or_queue_media(chat_id, **stream_info, from_loop=True)
             elif chat_id in queues and queues[chat_id]:
                 next_track = queues[chat_id].pop(0)
@@ -107,8 +187,7 @@ async def poll_stream_status(chat_id):
             else:
                 # End the stream
                 stream_running.pop(chat_id, None)
-                if chat_id in looping:
-                    looping.pop(chat_id)
+                looping.pop(chat_id, None)
                 await real_pytgcalls.leave_call(chat_id)
                 break
 

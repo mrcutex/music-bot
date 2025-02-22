@@ -198,32 +198,68 @@ async def poll_stream_status(chat_id):
 
 # Add this function for image generation
 async def generate_queue_image(queue, chat_title):
-    # Create image with gradient background
-    img = Image.new('RGB', (800, 200 + len(queue)*60), (30, 30, 40))
+    # Create image with macOS-like design
+    img = Image.new('RGB', (800, 300 + len(queue)*70), (255, 255, 255))
     draw = ImageDraw.Draw(img)
     
-    # Load fonts
+    # Load macOS-style fonts (fallback to default)
     try:
-        title_font = ImageFont.truetype("arialbd.ttf", 30)
-        item_font = ImageFont.truetype("arial.ttf", 24)
+        title_font = ImageFont.truetype("HelveticaNeue-Bold.ttf", 32)
+        text_font = ImageFont.truetype("HelveticaNeue.ttf", 26)
+        meta_font = ImageFont.truetype("HelveticaNeue-Light.ttf", 22)
     except:
-        title_font = ImageFont.load_default()
-        item_font = ImageFont.load_default()
+        # Fallback to Arial if system fonts not available
+        try:
+            title_font = ImageFont.truetype("arialbd.ttf", 32)
+            text_font = ImageFont.truetype("arial.ttf", 26)
+            meta_font = ImageFont.truetype("arial.ttf", 22)
+        except:
+            title_font = ImageFont.load_default()
+            text_font = ImageFont.load_default()
+            meta_font = ImageFont.load_default()
 
-    # Draw header
-    draw.text((20, 20), f"Queue for {chat_title}", fill=(255, 255, 255), font=title_font)
-    
-    # Draw queue items
-    y = 80
-    for idx, track in enumerate(queue[:10], 1):  # Show first 10 items
-        # Fixed line with proper parenthesis
-        text = f"{idx}. {textwrap.shorten(track['title'], width=35)} - {track['duration']}"
-        draw.text((40, y), text, fill=(200, 200, 220), font=item_font)
-        y += 50
+    # Draw header with gradient
+    for i in range(70):
+        draw.line((0, i, 800, i), fill=(240 + i//3, 240 + i//3, 240 + i//3))
+
+    # macOS-style title with three dots menu
+    draw.text((40, 30), f"🎵  Queue for {chat_title}", fill=(30, 30, 30), font=title_font)
+    draw.ellipse((720, 35, 730, 45), fill=(200, 200, 200))  # •••
+    draw.ellipse((735, 35, 745, 45), fill=(200, 200, 200))
+    draw.ellipse((750, 35, 760, 45), fill=(200, 200, 200))
+
+    # Draw queue items with cards
+    y = 100
+    for idx, track in enumerate(queue[:8], 1):  # Show first 8 items with better spacing
+        # Card background
+        draw.rounded_rectangle((20, y, 780, y+60), radius=10, fill=(245, 245, 245))
+        
+        # Track number
+        draw.ellipse((40, y+15, 70, y+45), fill=(0, 122, 255))
+        draw.text((50, y+15), str(idx), fill=(255, 255, 255), font=text_font, anchor="mm")
+        
+        # Track title with ellipsis
+        truncated_title = textwrap.shorten(track['title'], width=32, placeholder="...")
+        draw.text((90, y+15), truncated_title, fill=(30, 30, 30), font=text_font)
+        
+        # Duration and type
+        draw.text((90, y+35), f"🕒 {track['duration']} • ⚡ {track['media_type'].title()}",
+                 fill=(150, 150, 150), font=meta_font)
+        
+        # Progress bar
+        draw.rounded_rectangle((600, y+25, 760, y+35), radius=5, fill=(225, 225, 225))
+        
+        y += 75
+
+    # Drop shadow effect
+    shadow = Image.new('RGBA', img.size, (0,0,0,0))
+    for i in range(10):
+        shadow.putalpha(Image.new('L', img.size, 15*i))
+        img.paste(shadow, (-i, -i), shadow)
     
     # Save temporary image
-    img_path = f"queue_{chat_title}.jpg"
-    img.save(img_path)
+    img_path = f"queue_{chat_title}.png"
+    img.save(img_path, quality=100)
     return img_path
     
 async def add_to_queue(chat_id, title, duration, link, media_type):

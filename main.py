@@ -196,99 +196,123 @@ async def poll_stream_status(chat_id):
 
 
 # Add these new imports at the top
-
-# Add this function for image generation
 async def generate_queue_image(queue, chat_title):
     # Modern Dark Theme Parameters
     BG_COLOR = (18, 18, 18)
     CARD_COLOR = (30, 30, 30)
-    ACCENT_COLOR = (0, 230, 118)  # Neon Green
+    ACCENT_COLOR = (0, 230, 118)
     TEXT_COLOR = (255, 255, 255)
     META_COLOR = (170, 170, 170)
-
-    # Create image with modern aspect ratio
-    img = Image.new('RGB', (1080, 1920), BG_COLOR)
+    
+    # Image dimensions
+    WIDTH, HEIGHT = 1080, 1920
+    
+    # Create canvas
+    img = Image.new('RGB', (WIDTH, HEIGHT), BG_COLOR)
     draw = ImageDraw.Draw(img)
-
-    # Load Modern Fonts (Use Inter Font Family)
-    try:
-        bold_font = ImageFont.truetype("Inter-Bold.ttf", 62)
-        medium_font = ImageFont.truetype("Inter-Medium.ttf", 48)
-        regular_font = ImageFont.truetype("Inter-Regular.ttf", 42)
-    except:
-        # Fallback to Roboto
-        try:
-            bold_font = ImageFont.truetype("Roboto-Bold.ttf", 62)
-            medium_font = ImageFont.truetype("Roboto-Medium.ttf", 48)
-            regular_font = ImageFont.truetype("Roboto-Regular.ttf", 42)
-        except:
-            # Ultimate Fallback
-            bold_font = ImageFont.load_default()
-            medium_font = ImageFont.load_default()
-            regular_font = ImageFont.load_default()
-
-    # Header Section with Dynamic Gradient
-    header_height = 280
-    for i in range(header_height):
-        alpha = int(255 * (i / header_height))
-        draw.rectangle((0, i, 1080, i + 1), fill=(18, 18, 18, alpha))
-
-    # Modern Typography
-    draw.text((120, 80), "MUSIC QUEUE", fill=ACCENT_COLOR, font=bold_font)
-
-    # macOS-style Window Controls
-    draw.ellipse((920, 90, 980, 150), fill=(255, 95, 87))  # Red
-    draw.ellipse((990, 90, 1050, 150), fill=(254, 189, 47))  # Yellow
-    draw.ellipse((1060, 90, 1120, 150), fill=(49, 203, 89))  # Green
-
-    # Queue Items with Material Design
-    y_position = 320
-    for idx, track in enumerate(queue[:8], 1):
-        # Card Background
-        draw.rounded_rectangle((60, y_position, 1020, y_position + 180),
-                               radius=18, fill=CARD_COLOR)
-
-        # Track Number Badge
-        draw.ellipse((100, y_position + 40, 180, y_position + 120), 
-                     fill=ACCENT_COLOR)
-        draw.text((140, y_position + 80), str(idx),
-                  fill=TEXT_COLOR, font=medium_font, anchor="mm")
-
-        # Track Title with Gradient
-        title = textwrap.shorten(track['title'], width=28, placeholder="...")
-        draw.text((220, y_position + 50), title,
-                  fill=TEXT_COLOR, font=medium_font)
-
-        # Metadata Chip
-        draw.rounded_rectangle((220, y_position + 110, 470, y_position + 160),
-                               radius=12, fill=BG_COLOR)
-        draw.text((240, y_position + 120), 
-                  f"🕒 {track['duration']} | {track['media_type'].upper()}",
-                  fill=META_COLOR, font=regular_font)
-
-        # Dynamic Progress Bar
-        draw.rounded_rectangle((700, y_position + 110, 980, y_position + 130),
-                               radius=8, fill=(50, 50, 50))
-        draw.rounded_rectangle((700, y_position + 110, 780, y_position + 130),
-                               radius=8, fill=ACCENT_COLOR)
-
-        # Spotify-style Waveform
-        for i in range(12):
-            height = random.randint(20, 80)
-            draw.rounded_rectangle((700 + (i * 25), y_position + 50,
-                                    720 + (i * 25), y_position + 50 + height),
-                                   radius=4, fill=ACCENT_COLOR)
-
-        y_position += 220
-
-    # Floating Player Controls
-    draw.rounded_rectangle((200, 1750, 880, 1850), radius=35, fill=CARD_COLOR)
-    draw.ellipse((460, 1770, 560, 1870), fill=ACCENT_COLOR)
-
-    # Save as High Quality PNG
-    img_path = f"queue_{chat_title}.png"
-    img.save(img_path, quality=95, optimize=True)
+    
+    # Font settings (using default fonts)
+    title_font = ImageFont.truetype("arialbd.ttf", 54) if os.path.exists("arialbd.ttf") else ImageFont.load_default(54)
+    track_font = ImageFont.truetype("arial.ttf", 42) if os.path.exists("arial.ttf") else ImageFont.load_default(42)
+    meta_font = ImageFont.truetype("arial.ttf", 36) if os.path.exists("arial.ttf") else ImageFont.load_default(36)
+    
+    # Header Section
+    header_height = 250
+    draw.rectangle((0, 0, WIDTH, header_height), fill=ACCENT_COLOR)
+    
+    # Chat Title with Three Dots
+    draw.text(
+        (80, 80), 
+        f"🎵 {chat_title[:25]}", 
+        fill=TEXT_COLOR, 
+        font=title_font
+    )
+    
+    # Three Dots Menu (Right Aligned)
+    dot_size = 12
+    dot_spacing = 25
+    for i in range(3):
+        draw.ellipse(
+            (WIDTH-150 + (i*dot_spacing), 100,
+            WIDTH-150 + (i*dot_spacing) + dot_size, 100 + dot_size
+        ), fill=TEXT_COLOR)
+    
+    # Track List Container
+    card_padding = 40
+    card_width = WIDTH - 2*card_padding
+    draw.rounded_rectangle(
+        (card_padding, header_height + 50, 
+         WIDTH - card_padding, HEIGHT - 100),
+        radius=25,
+        fill=CARD_COLOR
+    )
+    
+    # Track Items
+    y_position = header_height + 100
+    max_tracks = 8
+    track_height = 150
+    
+    for idx, track in enumerate(queue[:max_tracks], 1):
+        # Track Card
+        track_card_top = y_position
+        track_card_bottom = y_position + track_height
+        
+        # Alternate Background
+        if idx % 2 == 0:
+            draw.rounded_rectangle(
+                (card_padding + 20, track_card_top,
+                 WIDTH - card_padding - 20, track_card_bottom),
+                radius=15,
+                fill=BG_COLOR
+            )
+        
+        # Track Number
+        draw.text(
+            (card_padding + 50, track_card_top + 45), 
+            f"{idx}.", 
+            fill=ACCENT_COLOR, 
+            font=track_font
+        )
+        
+        # Track Title
+        title = textwrap.shorten(track['title'], width=32, placeholder="..")
+        draw.text(
+            (card_padding + 150, track_card_top + 40), 
+            title, 
+            fill=TEXT_COLOR, 
+            font=track_font
+        )
+        
+        # Metadata Line
+        metadata_y = track_card_top + 85
+        draw.text(
+            (card_padding + 150, metadata_y), 
+            f"⏳ {track['duration']} | {track['media_type'].upper()}", 
+            fill=META_COLOR, 
+            font=meta_font
+        )
+        
+        # Waveform Visualization
+        waveform_start = 700
+        for i in range(14):
+            bar_width = 15
+            spacing = 5
+            x = waveform_start + (i * (bar_width + spacing))
+            height = random.randint(30, 80)
+            draw.rounded_rectangle(
+                (x, track_card_top + 50,
+                 x + bar_width, track_card_top + 50 + height),
+                radius=3,
+                fill=ACCENT_COLOR
+            )
+        
+        y_position += track_height + 20
+    
+    # Save Image
+    img_path = f"queue_{chat_title.replace(' ', '_')}.png"
+    img.save(img_path, quality=95)
     return img_path
+
     
 async def add_to_queue(chat_id, title, duration, link, media_type):
     if chat_id not in queues:

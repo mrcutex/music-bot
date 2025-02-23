@@ -195,7 +195,7 @@ async def poll_stream_status(chat_id):
                 break
 
 
-async def generate_queue_image(queue, chat_title, chat_photo=None):
+async def generate_queue_image(queue, chat_title):
     # Modern Dark Theme Parameters
     BG_COLOR = (18, 18, 18)
     CARD_COLOR = (30, 30, 30)
@@ -210,112 +210,94 @@ async def generate_queue_image(queue, chat_title, chat_photo=None):
     img = Image.new('RGB', (WIDTH, HEIGHT), BG_COLOR)
     draw = ImageDraw.Draw(img)
     
-    # Font settings (bold fonts)
-    try:
-        title_font = ImageFont.truetype("arialbd.ttf", 60)
-        track_font = ImageFont.truetype("arialbd.ttf", 45)
-        meta_font = ImageFont.truetype("arial.ttf", 38)
-    except:
-        title_font = ImageFont.load_default()
-        track_font = ImageFont.load_default()
-        meta_font = ImageFont.load_default()
-
+    # Font settings (using default fonts)
+    title_font = ImageFont.truetype("arialbd.ttf", 70) if os.path.exists("arialbd.ttf") else ImageFont.load_default(54)
+    track_font = ImageFont.truetype("arial.ttf", 42) if os.path.exists("arial.ttf") else ImageFont.load_default(42)
+    meta_font = ImageFont.truetype("arial.ttf", 36) if os.path.exists("arial.ttf") else ImageFont.load_default(36)
+    
     # Header Section
-    header_height = 300
+    header_height = 220
     draw.rectangle((0, 0, WIDTH, header_height), fill=ACCENT_COLOR)
     
-    # Chat Photo (Circular)
-    photo_size = 120
-    photo_position = (80, 80)
-    if chat_photo:
-        try:
-            profile = Image.open(chat_photo).resize((photo_size, photo_size))
-            mask = Image.new('L', (photo_size, photo_size), 0)
-            draw_mask = ImageDraw.Draw(mask)
-            draw_mask.ellipse((0, 0, photo_size, photo_size), fill=255)
-            img.paste(profile, photo_position, mask)
-        except:
-            draw.ellipse(
-                (photo_position[0], photo_position[1], 
-                photo_position[0]+photo_size, photo_position[1]+photo_size
-            ), fill=CARD_COLOR)
-    else:
-        draw.ellipse(
-            (photo_position[0], photo_position[1], 
-            photo_position[0]+photo_size, photo_position[1]+photo_size
-        ), fill=CARD_COLOR)
-    
-    # Chat Title with Bold Text
-    title_x = photo_position[0] + photo_size + 40
+    # Chat Title with Three Dots
     draw.text(
-        (title_x, 100), 
-        f"{chat_title[:20]}".upper(), 
+        (80, 80), 
+        f"✦ {chat_title[:27]}", 
         fill=TEXT_COLOR, 
         font=title_font
     )
     
-    # macOS-style Three Dots (Vertical Alignment)
-    dot_size = 18
-    dot_positions = [
-        (WIDTH-120, 140),
-        (WIDTH-120, 170),
-        (WIDTH-120, 200)
-    ]
-    for pos in dot_positions:
-        draw.ellipse(
-            (pos[0], pos[1], 
-            pos[0]+dot_size, pos[1]+dot_size
-        ), fill=TEXT_COLOR)
     
-    # Main Content Card
-    main_card = (
-        40, header_height + 40,
-        WIDTH-40, HEIGHT - 80
+    # Track List Container
+    card_padding = 40
+    card_width = WIDTH - 2*card_padding
+    draw.rounded_rectangle(
+        (card_padding, header_height + 50, 
+         WIDTH - card_padding, HEIGHT - 100),
+        radius=25,
+        fill=CARD_COLOR
     )
-    draw.rounded_rectangle(main_card, radius=30, fill=CARD_COLOR)
     
-    # Track List
+    # Track Items
     y_position = header_height + 100
-    track_height = 160
+    max_tracks = 8
+    track_height = 150
     
-    for idx, track in enumerate(queue[:8], 1):
+    for idx, track in enumerate(queue[:max_tracks], 1):
+        # Track Card
+        track_card_top = y_position
+        track_card_bottom = y_position + track_height
+        
+        # Alternate Background
+        if idx % 2 == 0:
+            draw.rounded_rectangle(
+                (card_padding + 20, track_card_top,
+                 WIDTH - card_padding - 20, track_card_bottom),
+                radius=15,
+                fill=BG_COLOR
+            )
+        
         # Track Number
         draw.text(
-            (100, y_position + 45), 
+            (card_padding + 50, track_card_top + 45), 
             f"{idx}.", 
             fill=ACCENT_COLOR, 
             font=track_font
         )
         
         # Track Title
-        title = textwrap.shorten(track['title'], width=28, placeholder="..")
+        title = textwrap.shorten(track['title'], width=32, placeholder="..")
         draw.text(
-            (200, y_position + 40), 
+            (card_padding + 150, track_card_top + 40), 
             title, 
             fill=TEXT_COLOR, 
             font=track_font
         )
         
-        # Metadata
+        # Metadata Line
+        metadata_y = track_card_top + 85
         draw.text(
-            (200, y_position + 90), 
-            f"⏳ {track['duration']} | {track['media_type'].upper()}", 
+            (card_padding + 150, metadata_y), 
+            f"⏱︎ {track['duration']} | {track['media_type'].upper()}", 
             fill=META_COLOR, 
             font=meta_font
         )
         
-        # Modern Waveform
-        waveform_x = 800
-        for i in range(12):
-            bar_height = random.randint(40, 100)
+        # Waveform Visualization
+        waveform_start = 700
+        for i in range(14):
+            bar_width = 15
+            spacing = 5
+            x = waveform_start + (i * (bar_width + spacing))
+            height = random.randint(30, 80)
             draw.rounded_rectangle(
-                (waveform_x + (i*25), y_position + 50,
-                 waveform_x + (i*25) + 15, y_position + 50 + bar_height),
-                radius=5,
+                (x, track_card_top + 50,
+                 x + bar_width, track_card_top + 50 + height),
+                radius=3,
                 fill=ACCENT_COLOR
             )
         
-        y_position += track_height + 30
+        y_position += track_height + 20
     
     # Save Image
     img_path = f"queue_{chat_title.replace(' ', '_')}.png"

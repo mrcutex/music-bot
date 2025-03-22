@@ -50,7 +50,7 @@ PING_COMMAND = ["alive", "ping", "pong", "status"]
 
 real_app.set_parse_mode(enums.ParseMode.MARKDOWN)
 
-# Cached fonts for image generation
+# Cached fonts
 FONTS = {
     "title": ImageFont.truetype("arialbd.ttf", 70) if os.path.exists("arialbd.ttf") else ImageFont.load_default(),
     "track": ImageFont.truetype("arial.ttf", 42) if os.path.exists("arial.ttf") else ImageFont.load_default(),
@@ -82,18 +82,30 @@ async def search_yt(query: str):
 
 async def ytdl(format: str, link: str):
     try:
-        # Enhanced yt-dlp with proxy and cookies for bypassing restrictions
-        proc = await asyncio.create_subprocess_exec(
+        # Proxy and User-Agent for bypassing restrictions (cookies optional)
+        user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15",
+        ]
+        random_ua = random.choice(user_agents)
+
+        args = [
             "yt-dlp",
-            "--cookies", "cookies.txt",  # Use cookies for age-restricted content
-            "--geo-bypass",              # Bypass region restrictions
-            "--proxy", "socks5://127.0.0.1:9050",  # Optional: Tor proxy (configure as needed)
+            "--geo-bypass",
+            "--user-agent", random_ua,
             "-g", "-f", format,
             link,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-        )
+        ]
+        # Optional: Add "--cookies", "cookies.txt" if you have it
+        if os.path.exists("cookies.txt"):
+            args.insert(1, "--cookies")
+            args.insert(2, "cookies.txt")
+
+        proc = await asyncio.create_subprocess_exec(*args)
         stdout, stderr = await proc.communicate()
+        
         if stdout:
             return 1, stdout.decode().split("\n")[0]
         return 0, stderr.decode()
@@ -124,6 +136,29 @@ async def play_or_queue_media(chat_id: int, title: str, duration: str, link: str
         "media_type": media_type,
         "start_time": time.time(),
     }
+    if not from_loop:  # Start polling only if not from loop to avoid duplicate tasks
+        asyncio.create_task(poll_stream_status(chat_id))
+
+async def poll_stream_status(chat_id: int):
+    while chat_id in stream_running:
+        await asyncio.sleep(5)
+        stream_info = stream_running.get(chat_id)
+        if not stream_info:
+            break
+
+        elapsed_time = time.time() - stream_info["start_time"]
+        if elapsed_time >= stream_info["duration"]:
+            if chat_id in looping and looping[chat_id] != 0:
+                if looping[chat_id] > 0:
+                    looping[chat_id] -= 1
+                await play_or_queue_media(chat_id, **stream_info, from_loop=True)
+            elif chat_id in queues and queues[chat_id]:
+                await play_next_from_queue(chat_id)
+            else:
+                stream_running.pop(chat_id, None)
+                looping.pop(chat_id, None)
+                await real_pytgcalls.leave_call(chat_id)
+                break
 
 # Command Handlers
 @real_app.on_message(filters.command(["play", "vplay"], PREFIX))
@@ -319,15 +354,6 @@ async def play_next_from_queue(chat_id: int):
         stream_running.pop(chat_id, None)
         await real_pytgcalls.leave_call(chat_id)
 
-@real_pytgcalls.on_stream_end
-async def on_stream_end(chat_id: int):
-    if chat_id in looping and looping[chat_id] != 0:
-        if looping[chat_id] > 0:
-            looping[chat_id] -= 1
-        await play_or_queue_media(chat_id, **stream_running[chat_id], from_loop=True)
-    else:
-        await play_next_from_queue(chat_id)
-
 async def generate_queue_image(queue, chat_title, chat_id):
     BG_COLOR = (18, 18, 18)
     CARD_COLOR = (30, 30, 30)
@@ -353,7 +379,6 @@ async def generate_queue_image(queue, chat_title, chat_id):
         draw.text((180, track_card_top + 40), title, fill=TEXT_COLOR, font=FONTS["track"])
         draw.text((180, track_card_top + 85), f"⏱︎ {track['duration']} | {track['media_type'].upper()}", fill=META_COLOR, font=FONTS["meta"])
 
-        # Progress bar if current track
         if idx == 1 and chat_id in stream_running and stream_running[chat_id]["title"] == track["title"]:
             elapsed = time.time() - stream_running[chat_id]["start_time"]
             progress = min(elapsed / stream_running[chat_id]["duration"], 1) if stream_running[chat_id]["duration"] else 0

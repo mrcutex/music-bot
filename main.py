@@ -82,28 +82,22 @@ async def search_yt(query: str):
 
 async def ytdl(format: str, link: str):
     try:
-        # Proxy and User-Agent for bypassing restrictions (cookies optional)
         user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15",
         ]
         random_ua = random.choice(user_agents)
 
-        args = [
-            "yt-dlp",
-            "--geo-bypass",
-            "--user-agent", random_ua,
-            "-g", "-f", format,
-            link,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        ]
-        # Optional: Add "--cookies", "cookies.txt" if you have it
+        args = ["yt-dlp", "--geo-bypass", "--user-agent", random_ua, "-g", "-f", format, link]
         if os.path.exists("cookies.txt"):
-            args.insert(1, "--cookies")
-            args.insert(2, "cookies.txt")
+            args[1:1] = ["--cookies", "cookies.txt"]
 
-        proc = await asyncio.create_subprocess_exec(*args)
+        # Positional args for older Python versions
+        proc = await asyncio.create_subprocess_exec(
+            *args,
+            asyncio.subprocess.PIPE,  # stdout
+            asyncio.subprocess.PIPE   # stderr
+        )
         stdout, stderr = await proc.communicate()
         
         if stdout:
@@ -136,7 +130,7 @@ async def play_or_queue_media(chat_id: int, title: str, duration: str, link: str
         "media_type": media_type,
         "start_time": time.time(),
     }
-    if not from_loop:  # Start polling only if not from loop to avoid duplicate tasks
+    if not from_loop:
         asyncio.create_task(poll_stream_status(chat_id))
 
 async def poll_stream_status(chat_id: int):

@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import time
-import random
 from datetime import timedelta
 from pyrogram import Client, filters, idle, enums
 from pyrogram.enums import ChatMemberStatus
@@ -37,7 +36,7 @@ session_string = os.getenv("REAL_SESSION_STRING")
 real_app = Client("RealAccount", api_id=api_id, api_hash=api_hash, session_string=session_string)
 real_pytgcalls = PyTgCalls(real_app)
 
-logging.basicConfig(level=logging.DEBUG)  # Increased verbosity for debugging
+logging.basicConfig(level=logging.DEBUG)  # Debug mode to trace the error
 logger = logging.getLogger(__name__)
 
 stream_running = {}
@@ -74,8 +73,9 @@ async def search_yt(query: str):
         result = search.result()["result"]
         if result:
             video = result[0]
-            logger.debug(f"search_yt result: title={video['title']}, duration={video['duration']}, id={video['id']}")
-            return video["title"], video["duration"], f"https://www.youtube.com/watch?v={video['id']}"
+            link = f"https://www.youtube.com/watch?v={video['id']}"
+            logger.debug(f"search_yt: title={video['title']}, duration={video['duration']}, link={link}")
+            return video["title"], video["duration"], link
         return None, None, None
     except Exception as e:
         logger.error(f"search_yt error: {e}")
@@ -84,23 +84,18 @@ async def search_yt(query: str):
 async def ytdl(format: str, link: str):
     try:
         # Ensure inputs are strings
-        if not isinstance(format, str) or not isinstance(link, str):
-            raise ValueError(f"Invalid input types: format={type(format)}, link={type(link)}")
+        if not isinstance(format, str):
+            format = str(format)
+        if not isinstance(link, str):
+            link = str(link)
 
         logger.debug(f"ytdl called with format={format}, link={link}")
-        user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15",
-        ]
-        random_ua = random.choice(user_agents)
-
-        args = ["yt-dlp", "--geo-bypass", "--user-agent", random_ua, "-g", "-f", format, link]
+        args = ["yt-dlp", "-g", "-f", format, link]
         if os.path.exists("cookies.txt"):
-            args[1:1] = ["--cookies", "cookies.txt"]
+            args.insert(1, "--cookies")
+            args.insert(2, "cookies.txt")
 
-        # Log the command for debugging
         logger.debug(f"Executing yt-dlp with args: {args}")
-
         proc = await asyncio.create_subprocess_exec(
             *args,
             asyncio.subprocess.PIPE,
@@ -109,10 +104,12 @@ async def ytdl(format: str, link: str):
         stdout, stderr = await proc.communicate()
         
         if stdout:
-            logger.debug(f"ytdl stdout: {stdout.decode()}")
-            return 1, stdout.decode().split("\n")[0]
-        logger.error(f"ytdl stderr: {stderr.decode()}")
-        return 0, stderr.decode()
+            media_link = stdout.decode().split("\n")[0]
+            logger.debug(f"ytdl success: {media_link}")
+            return 1, media_link
+        error = stderr.decode()
+        logger.error(f"ytdl failed: {error}")
+        return 0, error
     except Exception as e:
         logger.error(f"ytdl error: {e}")
         return 0, str(e)
@@ -124,7 +121,7 @@ async def play_or_queue_media(chat_id: int, title: str, duration: str, link: str
         duration_seconds = 0
 
     format_type = "bestaudio" if media_type == "audio" else "best"
-    logger.debug(f"play_or_queue_media: format={format_type}, link={link}")
+    logger.debug(f"play_or_queue_media: chat_id={chat_id}, title={title}, format={format_type}, link={link}")
     resp, media_link = await ytdl(format_type, link)
     
     if resp != 1:

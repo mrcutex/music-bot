@@ -34,7 +34,7 @@ session_string = os.getenv("REAL_SESSION_STRING")
 real_app = Client("RealAccount", api_id=api_id, api_hash=api_hash, session_string=session_string)
 real_pytgcalls = PyTgCalls(real_app)
 
-logging.basicConfig(level=logging.DEBUG)  # Debug mode ON
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 stream_running = {}
@@ -47,8 +47,19 @@ PING_COMMAND = ["alive", "ping", "pong", "status"]
 
 real_app.set_parse_mode(enums.ParseMode.MARKDOWN)
 
+# Rate limiting control
+last_request_time = 0
+REQUEST_DELAY = 2  # Seconds between requests to avoid 429
+
 async def search_yt(query):
+    global last_request_time
     try:
+        # Add delay to avoid rate limiting
+        current_time = time.time()
+        if current_time - last_request_time < REQUEST_DELAY:
+            await asyncio.sleep(REQUEST_DELAY - (current_time - last_request_time))
+        last_request_time = time.time()
+
         search = VideosSearch(query, limit=1)
         result = search.result()
         if 'result' in result and result['result']:
@@ -68,7 +79,6 @@ async def search_yt(query):
 
 async def ytdl(format, link):
     try:
-        # Random User-Agent to avoid bot detection
         user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15",
@@ -76,36 +86,49 @@ async def ytdl(format, link):
         ]
         random_ua = random.choice(user_agents)
 
-        # Build args dynamically
+        # Base args without proxy
         args = [
             "yt-dlp",
-            "--geo-bypass",           # Bypass geo-restrictions
-            "--user-agent", random_ua, # Randomize User-Agent
-            "-g",                     # Get URL
-            "-f", format,             # Format (bestaudio/best)
-            link                      # YouTube link
+            "--geo-bypass",
+            "--user-agent", random_ua,
+            "-g",
+            "-f", format,
+            link
         ]
         if os.path.exists("cookies.txt"):
-            args[1:1] = ["--cookies", "cookies.txt"]  # Optional cookies
-        
-        # Optional proxy (uncomment if needed)
-        # args[1:1] = ["--proxy", "socks5://127.0.0.1:9050"]  # Tor proxy example
+            args[1:1] = ["--cookies", "cookies.txt"]
 
-        logger.debug(f"Executing yt-dlp with args: {args}")
+        logger.debug(f"Attempting yt-dlp without proxy: {args}")
         proc = await asyncio.create_subprocess_exec(
             *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
-        
+
+        if stdout and "HTTP Error 429" not in stderr.decode():
+            media_link = stdout.decode().split("\n")[0]
+            logger.debug(f"yt-dlp success (no proxy): {media_link}")
+            return 1, media_link
+
+        # If 429 or unavailable, try with proxy
+        logger.warning("yt-dlp failed, trying with proxy...")
+        args[1:1] = ["--proxy", "socks5://127.0.0.1:9050"]  # Tor proxy (requires Tor running)
+        logger.debug(f"Attempting yt-dlp with proxy: {args}")
+        proc = await asyncio.create_subprocess_exec(
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+
         if stdout:
             media_link = stdout.decode().split("\n")[0]
-            logger.debug(f"yt-dlp success: {media_link}")
+            logger.debug(f"yt-dlp success (with proxy): {media_link}")
             return 1, media_link
         else:
             error_msg = stderr.decode() if stderr else "No output from yt-dlp"
-            logger.error(f"yt-dlp failed: {error_msg}")
+            logger.error(f"yt-dlp failed (with proxy): {error_msg}")
             return 0, error_msg
     except Exception as e:
         logger.error(f"ytdl error: {e}")

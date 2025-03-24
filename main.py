@@ -76,20 +76,24 @@ async def ytdl(format, link):
             "yt-dlp",
             "--cookies", "cookies.txt",  
             "-g",
-            "-f",
-            format,
-            link,
+            "-f", f"{format}",
+            f"{link}",
+            "--no-proxy",  
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
+
         if stdout:
-            return 1, stdout.decode().split("\n")[0]
+            audio_link = stdout.decode().split("\n")[0]
+            logger.info(f"Audio link retrieved: {audio_link}")
+            return 1, audio_link
         else:
-            logger.error(f"YT-DLP Error (full stderr): {stderr.decode()}")
-            return 0, stderr.decode()
+            error_message = stderr.decode()
+            logger.error(f"yt-dlp stderr: {error_message}")
+            return 0, error_message
     except Exception as e:
-        logger.error(f"ytdl error: {e}")
+        logger.error(f"Exception occurred in ytdl: {e}")
         return 0, str(e)
 
 

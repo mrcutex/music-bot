@@ -25,6 +25,8 @@ COPY requirements.txt /app/
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN pip install -U yt-dlp
+
 # Copy the remaining application files
 COPY . /app
 

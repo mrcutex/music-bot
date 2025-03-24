@@ -83,10 +83,10 @@ async def ytdl(format, link):
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
-        logger.error(f"YT-DLP Error: {stderr.decode()}")
         if stdout:
             return 1, stdout.decode().split("\n")[0]
         else:
+            logger.error(f"YT-DLP Error (full stderr): {stderr.decode()}")
             return 0, stderr.decode()
     except Exception as e:
         logger.error(f"ytdl error: {e}")
